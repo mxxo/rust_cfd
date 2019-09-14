@@ -1,0 +1,15 @@
+[package]
+name = "rust_cfd"
+version = "0.1.0"
+authors = ["Max Orok <morok@mevex.com>"]
+edition = "2018"
+
+[lib]
+name = "rust_cfd"
+path = "src/lib.rs"
+
+[dependencies]
+nalgebra = "0.18"
+approx = "0.3"
+itertools-num = "0.1"
+derive_more = "0.15"
