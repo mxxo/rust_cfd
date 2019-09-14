@@ -1,7 +1,7 @@
 # Rust library for the course "Finite-volume methods" 
 
-# Completed assignments 
-1. **a1** --- Godunov's method for linear PDEs (1D) 
+## Completed assignments 
+* **a1** --- Godunov's method for linear PDEs (1D) 
 
 Build all assignments using `cargo build --release`
 
