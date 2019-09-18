@@ -25,6 +25,10 @@ use itertools_num::linspace;
 extern crate derive_more;
 use derive_more::Index;
 
+// numerical integration
+extern crate gauss_quad;
+use gauss_quad::Midpoint;
+
 // the solution vector
 #[derive(Debug)]
 pub struct Solution1d {
@@ -66,6 +70,8 @@ struct Cell1d {
     pub left: usize,
     pub right: usize,
 }
+
+
 
 // a 1D periodic domain
 #[derive(Debug, Index)]

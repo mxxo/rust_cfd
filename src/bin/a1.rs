@@ -14,6 +14,9 @@ use rust_cfd::{Solution1d};
 // e
 use std::f64;
 
+extern crate gauss_quad;
+use gauss_quad::Midpoint;
+
 // specific solution
 fn main() {
 
@@ -37,6 +40,9 @@ fn main() {
     dbg!(ic_1(2.));
     dbg!(ic_1(0.2));
     dbg!(ic_1(0.));
+
+    let quad = Midpoint::init(10);
+    dbg!(quad.integrate(-1.0, 1.0, |x| x*x));
 
     //soln.update();
 
