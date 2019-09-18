@@ -9,6 +9,7 @@ name = "rust_cfd"
 path = "src/lib.rs"
 
 [dependencies]
+gauss-quad = "0.1.2"
 nalgebra = "0.18"
 approx = "0.3"
 itertools-num = "0.1"

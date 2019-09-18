@@ -11,20 +11,34 @@
 // general solution code
 use rust_cfd::{Solution1d};
 
+// e
+use std::f64;
+
 // specific solution
 fn main() {
 
     // discretize domain
     let left = -5.0;
     let right = 5.0;
-    let num_cells = 10;
+    let num_cells = 3;
 
     // make a new, empty solution
-    let soln_0 = Solution1d::new(left, right, num_cells);
-    dbg!(soln_0);
+    let soln = Solution1d::new(left, right, num_cells);
+    dbg!(soln);
 
-    // set the initial conditions
-    //let initial_conditions =
+    // PDE number 1
+    // update the solution with initial conditions
+    let ic_1 = |x: f64| if x.abs() < 2.0 {
+                            (-x * x).exp()
+                        } else {
+                            0.
+                        };
+
+    dbg!(ic_1(2.));
+    dbg!(ic_1(0.2));
+    dbg!(ic_1(0.));
+
+    //soln.update();
 
     let t_end = 10.;
 }

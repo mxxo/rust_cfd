@@ -31,20 +31,32 @@ pub struct Solution1d {
     // cell values
     cells: Vec<Cell1d>,
     // the discretized domain
-    domain: Domain1d,
+    domain: PeriodicDomain1d,
 }
 
 impl Solution1d {
     // constructor
     pub fn new(left: f64, right: f64, num_cells: usize) -> Self {
-
         // make a problem domain
-        let d = Domain1d::even(left, right, num_cells);
+        let domain = PeriodicDomain1d::even(left, right, num_cells);
+
+        // initialize the solution vector
+        let mut cells = Vec::new();
+        cells.reserve(num_cells);
+
+        for i in 0..num_cells {
+            cells.push(
+                Cell1d {value: 0.0, left: i, right: i+1}
+            );
+        }
+
         Solution1d {
-            cells: Vec::new(),
-            domain: d,
+            cells,
+            domain,
         }
     }
+
+//initialize(&self,
 }
 
 // a discrete solution cell
@@ -55,13 +67,13 @@ struct Cell1d {
     pub right: usize,
 }
 
-// a 1D domain
+// a 1D periodic domain
 #[derive(Debug, Index)]
-struct Domain1d {
+struct PeriodicDomain1d {
     boundaries: Vec<f64>
 }
 
-impl Domain1d {
+impl PeriodicDomain1d {
     // number of discrete points
     pub fn len(&self) -> usize {
         self.boundaries.len()
@@ -83,7 +95,7 @@ impl Domain1d {
     pub fn even(left: f64, right: f64, num_cells: usize) -> Self {
         // one more boundary than number of cells
         let boundaries = linspace::<f64>(left, right, num_cells + 1).collect();
-        Domain1d {
+        PeriodicDomain1d {
             boundaries,
         }
     }
@@ -96,7 +108,7 @@ mod tests {
     #[test]
     pub fn periodic() {
         let l = 10;
-        let domain = Domain1d::even(-10., 10., l);
+        let domain = PeriodicDomain1d::even(-10., 10., l);
         let left = 0;
         let right = domain.len() - 1;
         // left periodic
@@ -108,7 +120,7 @@ mod tests {
     #[test]
     pub fn domain_size() {
         let l = 100;
-        let domain = Domain1d::even(-10., 10., l);
+        let domain = PeriodicDomain1d::even(-10., 10., l);
         assert!(domain.len() == l + 1);
     }
 }
