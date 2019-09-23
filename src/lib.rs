@@ -29,83 +29,90 @@ use derive_more::Index;
 extern crate gauss_quad;
 use gauss_quad::Midpoint;
 
+
+// pub fn make_flux_fn<F> (left: f64, right: f64, flux_fn: Fn(f64, f64) -> f64) {
+//     match flux_type {
+//         LeftCell    => flux_fn(left),
+//         RightCell   => flux_fn(right),
+//         CellAverage => 0.5 * (flux_fn(left) + flux_fn(right)),
+//         Godunov => flux_fn(riemann_soln(left, right)),
+//     }
+// }
+
+fn riemann_soln(left: f64, right: f64) -> f64 {
+
+    unimplemented!();
+}
+
 // the solution vector
 #[derive(Debug)]
 pub struct Solution1d {
     // cell values
-    cells: Vec<Cell1d>,
+    cells: Vec<f64>,
     // the discretized domain
-    domain: PeriodicDomain1d,
+    domain: Vec<Boundary1d>,
 }
 
 impl Solution1d {
     // constructor
     pub fn new(left: f64, right: f64, num_cells: usize) -> Self {
-        // make a problem domain
-        let domain = PeriodicDomain1d::even(left, right, num_cells);
 
-        // initialize the solution vector
-        let mut cells = Vec::new();
-        cells.reserve(num_cells);
-
-        for i in 0..num_cells {
-            cells.push(
-                Cell1d {value: 0.0, left: i, right: i+1}
-            );
-        }
+        // initialize the domain
+        let mut domain = Vec::new();
 
         Solution1d {
-            cells,
+            cells: vec![0.0; num_cells], // 0 out the solution vector
             domain,
         }
     }
 
-//initialize(&self,
+    // initialize the solution vector with some initial condition expression
+    pub fn init<F> (&mut self, ic: F)
+        where F: Fn(f64) -> f64 {
+            // hardcode averaging scheme for simplicity
+            let quad = Midpoint::init(self.cells.len());
+
+    }
+
+    // update the solution using some flux function
+    pub fn update<F> (&mut self, flux_fn: F)
+        where F: Fn(f64) -> f64 {
+
+    }
+
 }
 
-// a discrete solution cell
+// a boundary -- a cell interface
 #[derive(Debug)]
-struct Cell1d {
-    pub value: f64,
-    pub left: usize,
-    pub right: usize,
+struct Boundary1d {
+    coord: f64,
+    left_cell: usize,
+    right_cell: usize,
 }
 
 
-
-// a 1D periodic domain
-#[derive(Debug, Index)]
-struct PeriodicDomain1d {
-    boundaries: Vec<f64>
-}
-
-impl PeriodicDomain1d {
-    // number of discrete points
-    pub fn len(&self) -> usize {
-        self.boundaries.len()
-    }
-
-    pub fn next_idx(&self, index: usize) -> usize {
-        (index + 1) % self.len()
-    }
-
-    pub fn prev_idx(&self, index: usize) -> usize {
-        if index == 0 {
-            self.len() - 1
-        } else {
-            index - 1
-        }
-    }
-
-    // create `num_cell` equally sized pieces between left and right
-    pub fn even(left: f64, right: f64, num_cells: usize) -> Self {
-        // one more boundary than number of cells
-        let boundaries = linspace::<f64>(left, right, num_cells + 1).collect();
-        PeriodicDomain1d {
-            boundaries,
-        }
-    }
-}
+//    // create `num_cell` equally sized pieces between left and right
+//    pub fn create(left: f64, right: f64, num_cells: usize) -> Self {
+//        // one more boundary than number of cells
+//        let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
+//        let mut boundaries = Vec::new();
+//
+//        for (idx, coord) in boundary_coords.enumerate() {
+//            // (-1 + num_cells is for wraparound indexing)
+//            let prev_idx = if idx == 0 {num_cells - 1} else {idx - 1};
+//            let next_idx = (idx + 1) % (num_cells + 1);
+//            boundaries.push(Boundary1D {
+//                coord,
+//                left_cell: prev_idx,
+//                right_cell: next_idx,
+//            });
+//        }
+//
+//        PeriodicDomain1d {
+//            boundaries,
+//        }
+//    }
+//}
 
 #[cfg(test)]
 mod tests {

@@ -11,7 +11,7 @@
 // general solution code
 use rust_cfd::{Solution1d};
 
-// e
+// euler's number e
 use std::f64;
 
 extern crate gauss_quad;
@@ -25,9 +25,16 @@ fn main() {
     let right = 5.0;
     let num_cells = 3;
 
+    // initialize the different flux functions
+    //let left_cell = |left, right, flux_fn: Fn(f64) -> f64| flux_fn(left);
+
+    dbg!(-1 % 10);
+    dbg!((1 + 10) % 10);
+    dbg!(10 % 10);
+
     // make a new, empty solution
     let soln = Solution1d::new(left, right, num_cells);
-    dbg!(soln);
+    //dbg!(soln);
 
     // PDE number 1
     // update the solution with initial conditions
