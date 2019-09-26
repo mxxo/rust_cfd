@@ -1,19 +1,21 @@
-// Finite-Volume methods assignment 1
-// Max Orok, September 2019
-//
-//-----------------------------------------------------------------------------
-// Godunov's method for linear PDEs (1D)
-//-----------------------------------------------------------------------------
-// discretize domain into non-overlapping cells
-// compute average of initial condition in each cell
-// solve a Riemann problem on each boundary to find the fluxes
-// advance each cell average
-//
-//-----------------------------------------------------------------------------
-// Dependencies
-//-----------------------------------------------------------------------------
-// linear algebra
-extern crate nalgebra as na;
+//!  Finite-Volume methods assignment 1
+//!
+//!  Max Orok, September 2019
+//!
+//! -----------------------------------------------------------------------------
+//!   Godunov's method for linear PDEs (1D)
+//! -----------------------------------------------------------------------------
+//!  Discretize domain into non-overlapping cells
+//!
+//!  Compute average of initial condition in each cell
+//!  
+//!  Solve a Riemann problem on each boundary to find the fluxes
+//!
+//!  Advance each cell average
+
+// ----------------------------------------------------------------------------
+//  Dependencies
+// ----------------------------------------------------------------------------
 
 // floating-point equality
 extern crate approx;
@@ -26,18 +28,9 @@ use itertools_num::linspace;
 extern crate gauss_quad;
 use gauss_quad::Midpoint;
 
-// pub fn make_flux_fn<F> (left: f64, right: f64, flux_fn: Fn(f64, f64) -> f64) {
-//     match flux_type {
-//         LeftCell    => flux_fn(left),
-//         RightCell   => flux_fn(right),
-//         CellAverage => 0.5 * (flux_fn(left) + flux_fn(right)),
-//         Godunov => flux_fn(riemann_soln(left, right)),
-//     }
-// }
-
-fn riemann_soln(left: f64, right: f64) -> f64 {
-    unimplemented!();
-}
+// ----------------------------------------------------------------------------
+// Data types
+// ----------------------------------------------------------------------------
 
 // a discrete solution cell
 #[derive(Debug)]
@@ -47,32 +40,20 @@ struct Cell1d {
     pub right: f64,
 }
 
-// a boundary | cell interface
+impl Cell1d {
+    // step this cell forward
+    pub fn advance(&mut self, timestep: f64, net_flux: f64) {
+        // some weirdness here since we're not using solution's uniform delta x?
+        self.value += timestep / (self.right - self.left) * net_flux;
+    }
+}
+
+// a boundary, aka cell interface
 #[derive(Debug)]
 struct Boundary1d {
     pub coord: f64,
     pub left_cell: usize,
     pub right_cell: usize,
-}
-
-// create `num_cell` equally sized pieces between left and right
-fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
-    // one more boundary than number of cells
-    let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
-    let mut boundaries = Vec::new();
-
-    for (idx, coord) in boundary_coords.enumerate() {
-        // num_cells is for wraparound indexing of usize values
-        let prev_idx = if idx == 0 {num_cells - 1} else { idx - 1 };
-        let next_idx = idx % num_cells;
-        boundaries.push(Boundary1d {
-            coord,
-            left_cell: prev_idx,
-            right_cell: next_idx,
-        });
-    }
-
-    boundaries
 }
 
 // the solution vector
@@ -82,16 +63,64 @@ pub struct Solution1d {
     cells: Vec<Cell1d>,
     // the discretized domain
     domain: Vec<Boundary1d>,
+    // the smallest cell width
+    pub delta_x: f64,
 }
+
+// ----------------------------------------------------------------------------
+// Flux functions 
+// ----------------------------------------------------------------------------
+
+// enum of supported flux functions 
+#[derive(Debug)]
+pub enum FluxType {
+    LeftCell,
+    RightCell,
+    CellAverage,
+    Riemann,
+}
+
+// flux based on the left cell only
+fn left_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
+    wavespeed * past_values[boundary.left_cell]
+}
+
+// flux based on the right cell only
+fn right_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
+    wavespeed * past_values[boundary.right_cell]
+}
+
+// F(average)
+fn average_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
+    wavespeed * 0.5 * (past_values[boundary.left_cell] + past_values[boundary.right_cell])
+}
+
+// F(Riemann solution)
+fn simple_riemann_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
+    // solution moving to the right, use information from the left cell 
+    if wavespeed > 0.0 { 
+        left_flux(boundary, past_values, wavespeed) 
+    }
+    // solution moving to the left, use information from the right cell 
+    else { 
+        right_flux(boundary, past_values, wavespeed) 
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Method implementations
+// ----------------------------------------------------------------------------
 
 impl Solution1d {
     // constructor
     pub fn new(left: f64, right: f64, num_cells: usize) -> Self {
         // initialize the domain
         let domain = make_domain(left, right, num_cells);
+
         // reserve space for the cell vector
         let mut cells = Vec::with_capacity(num_cells);
 
+        // initialize solution vector
         for cell_idx in 0..num_cells {
             cells.push(Cell1d {
                 value: 0.0,
@@ -100,13 +129,20 @@ impl Solution1d {
             });
         }
 
+        // find the minimum cell width
+        let delta_x = cells
+            .iter()
+            .map(|cell| cell.right - cell.left) // extract cell widths
+            .fold(std::f64::INFINITY, |a, b| a.min(b)); // reduce to minimum value
+
         Solution1d {
             cells,
             domain,
+            delta_x,
         }
     }
 
-    // initialize the solution vector using an initial condition expression
+    // initialize the solution vector with an expression
     pub fn init<F>(&mut self, ic_fn: F)
     where
         F: Fn(f64) -> f64,
@@ -119,38 +155,68 @@ impl Solution1d {
         }
     }
 
-    // update the solution using some flux function
-    pub fn update<F>(&mut self, flux_fn: F)
-    where
-        F: Fn(f64, f64) -> f64,
-    {
+    // update the solution
+    pub fn update(&mut self, flux_type: &FluxType, timestep: f64, wavespeed: f64) {
+        // use enum to dispatch the different flux functions
+        let flux_fn = match flux_type {
+            FluxType::LeftCell => left_flux,
+            FluxType::RightCell => right_flux,
+            FluxType::CellAverage => average_flux,
+            FluxType::Riemann => simple_riemann_flux,
+        };
 
-    }
+        // skim off previous timestep's values
+        let past_values: Vec<f64> = self.cells.iter().map(|cell| cell.value).collect();
 
-    // print out the solution to csv
-    pub fn print(&self) {
-        println!("position, value");
-        for cell in &self.cells {
-            println!("{}, {}", 0.5 * (cell.left + cell.right), cell.value);
+        // update cells using the flux function
+        for (index, cell) in self.cells.iter_mut().enumerate() {
+            let left_boundary = &self.domain[index];
+            let right_boundary = &self.domain[index + 1];
+
+            let net_flux = flux_fn(left_boundary, &past_values, wavespeed)
+                           - flux_fn(right_boundary, &past_values, wavespeed);
+
+            cell.advance(timestep, net_flux);
         }
     }
+
+    // export the solution in a simple format, akin to csv
+    pub fn export(&self) -> (Vec<f64>, Vec<f64>) {
+        let coords = self
+            .cells
+            .iter()
+            .map(|cell| 0.5 * (cell.left + cell.right))
+            .collect();
+        let values = self.cells.iter().map(|cell| cell.value).collect();
+        (coords, values)
+    }
+}
+
+// helper function for making a domain 
+//
+// create `num_cell` equally sized pieces between left and right
+fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
+    // one more boundary than number of cells
+    let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
+    let mut boundaries = Vec::new();
+
+    for (idx, coord) in boundary_coords.enumerate() {
+        // num_cells is for wraparound indexing of usize values
+        let prev_idx = if idx == 0 { num_cells - 1 } else { idx - 1 };
+        let next_idx = idx % num_cells;
+        boundaries.push(Boundary1d {
+            coord,
+            left_cell: prev_idx,
+            right_cell: next_idx,
+        });
+    }
+
+    boundaries
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    //#[test]
-    //pub fn periodic() {
-    //    let l = 10;
-    //    let domain = PeriodicDomain1d::even(-10., 10., l);
-    //    let left = 0;
-    //    let right = domain.len() - 1;
-    //    // left periodic
-    //    assert!(domain.prev_idx(left) == right);
-    //    // right periodic
-    //    assert!(domain.next_idx(right) == left);
-    //}
 
     #[test]
     pub fn domain_size() {
