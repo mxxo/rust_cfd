@@ -115,7 +115,7 @@ impl Solution1d {
         let quad = Midpoint::init(1000);
         // average initial condition in each cell
         for mut cell in self.cells.iter_mut() {
-            cell.value = quad.integrate(cell.left, cell.right, &ic_fn);
+            cell.value = quad.integrate(cell.left, cell.right, &ic_fn) / (cell.right - cell.left);
         }
     }
 
