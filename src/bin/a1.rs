@@ -15,10 +15,10 @@ use rust_cfd::{FluxType, Solution1d};
 use std::f64;
 
 // eigen decomposition
-extern crate nalgebra; 
-extern crate nalgebra_lapack; 
-use nalgebra::Matrix2;
-use nalgebra_lapack::Eigen; 
+extern crate nalgebra as na;
+extern crate nalgebra_lapack;
+
+use nalgebra_lapack::Eigen;
 
 // filesystem
 use std::fs::File;
@@ -66,16 +66,144 @@ fn pde1(flux_type: &FluxType) -> Solution1d {
     let ic = |x: f64| if x.abs() < 2.0 { (-x * x).exp() } else { 0. };
     soln.init(ic);
 
-    // find an appropriate timestep using cfl
-    let cfl = 1.0;
+    // solve the pde
+    let cfl = 0.5;
     let wave_speed = 2.0; // constant in problem
+    let time = 10.0;
 
+    // return the pde solution
+    step_pde(soln, flux_type, wave_speed, time, cfl)
+}
+
+// the second set of pdes
+fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
+    let left = -5.0;
+    let right = 5.0;
+    let num_cells = 100;
+
+    // ------------------------------------------------------------------
+    // equation 1 initial conditions
+    // ------------------------------------------------------------------
+    let u0_ic = {
+        let mut soln = Solution1d::new(left, right, num_cells);
+        let ic = |x: f64| if x.abs() < 2.0 { (-x * x).exp() } else { 0.0 };
+        soln.init(ic);
+
+        let (_, values) = soln.export();
+        values
+    };
+
+    //dbg!(u0_ic);
+
+    // ------------------------------------------------------------------
+    // equation 2 initial conditions
+    // ------------------------------------------------------------------
+    let u1_ic = {
+        let mut soln = Solution1d::new(left, right, num_cells);
+        let ic = |x: f64| f64::sin(x * 2.0 * f64::consts::PI / 5.0);
+        soln.init(ic);
+
+        let (_, values) = soln.export();
+        values
+    };
+
+    // ------------------------------------------------------------------
+    // decouple equations with eigendecomposition
+    // ------------------------------------------------------------------
+
+    // constant matrix A from the problem description
+    let a = na::Matrix2::new(0.0, 1.0, 0.5, 0.5);
+
+    let eigensystem = Eigen::new(a, true, true).expect("couldn't solve eigensystem");
+
+    let e_vals = eigensystem.eigenvalues;
+    let r_matrix = eigensystem
+        .eigenvectors
+        .expect("couldn't find eigenvector set");
+
+    let r_inverse = r_matrix.try_inverse().expect("couldn't invert R matrix");
+
+    // println!("{}", r_matrix);
+    // println!("{}", r_inverse);
+
+    // calculate transformed initial conditions
+    // -- would be nice to make this more general
+    let transform_soln = |index| -> (Solution1d, f64) {
+        let left_evec = r_inverse.row(index);
+
+        let v_ic: Vec<f64> = u0_ic
+            .iter()
+            .zip(u1_ic.iter())
+            .map(|(&u0, &u1)| {
+                let soln_piece = na::Matrix1x2::new(u0, u1);
+                left_evec.dot(&soln_piece)
+            })
+            .collect();
+
+        let mut v = Solution1d::new(left, right, num_cells);
+        v.fill(&v_ic);
+
+        (v, e_vals[index])
+    };
+
+    let (v0, wavespeed_v0) = transform_soln(0);
+    let (v1, wavespeed_v1) = transform_soln(1);
+
+    //(v0, v1)
+
+    // solve both equations in v-space
+    let time = 10.0;
+    let cfl = 0.99;
+
+    // v0
+    let solved_v0 = step_pde(v0, flux_type, wavespeed_v0, time, cfl);
+    let (_, v0_values) = solved_v0.export(); 
+
+    // v1
+    let solved_v1 = step_pde(v1, flux_type, wavespeed_v1, time, cfl);
+    let (_, v1_values) = solved_v1.export(); 
+
+    //(solved_v0, solved_v1)
+
+    // transform back to initial equations
+    let transform_back = |index| -> Solution1d { 
+        let e_vec = r_matrix.row(index); 
+        let v_ic: Vec<f64> = v0_values
+            .iter()
+            .zip(v1_values.iter())
+            .map(|(&v0, &v1)| {
+                let soln_piece = na::Matrix1x2::new(v0, v1);
+                e_vec.dot(&soln_piece)
+            })
+            .collect();
+
+        let mut v = Solution1d::new(left, right, num_cells);
+        v.fill(&v_ic);
+
+        v
+    };
+
+    let u0 = transform_back(0);
+    let u1 = transform_back(1);
+
+    // return the solutions
+    (u0, u1)
+}
+
+// helper method to solve pdes
+// -- method is kinda smelly... 3 floats in a row
+fn step_pde(
+    mut soln: Solution1d,
+    flux_type: &FluxType,
+    wave_speed: f64,
+    t_end: f64,
+    cfl: f64,
+) -> Solution1d {
+    // find appropriate timestep for this solution
     let time_step = get_time_step(soln.delta_x, wave_speed, cfl);
 
     // step through time until t_end
-
     let mut time = 0.0;
-    let t_end = 10.;
 
     loop {
         if time + time_step > t_end {
@@ -93,96 +221,10 @@ fn pde1(flux_type: &FluxType) -> Solution1d {
     soln
 }
 
-// the second set of pdes
-fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
-    let left = -5.0;
-    let right = 5.0;
-    let num_cells = 100;
-
-    // ------------------------------------------------------------------
-    // equation 1
-    // ------------------------------------------------------------------
-    let mut soln1 = {
-        let mut soln = Solution1d::new(left, right, num_cells);
-        let ic = |x: f64| if x.abs() < 2.0 { (-x * x).exp() } else { 0. };
-        soln.init(ic);
-
-        soln
-    };
-
-    // ------------------------------------------------------------------
-    // equation 2
-    // ------------------------------------------------------------------
-    let mut soln2 = {
-        let mut soln = Solution1d::new(left, right, num_cells);
-        let ic = |x: f64| f64::sin(x * 2.0 * f64::consts::PI / 5.0);
-        soln.init(ic);
-
-        soln
-    };
-    
-    // TODO eigensystem stuff here 
-
-    // constant matrix A from the problem description 
-    let a = Matrix2::new(0.0, 1.0,
-                         0.5, 0.5); 
-    
-    let eigensystem = Eigen::new(a, true, true).expect("couldn't solve eigensystem"); 
-    
-    let e_vals = eigensystem.eigenvalues; 
-    let r_matrix = eigensystem.eigenvectors.expect("couldn't find eigenvector set"); 
-    let r_inverse = eigensystem.left_eigenvectors.expect("couldn't find eigenvector set"); 
-
-    dbg!(e_vals); 
-    dbg!(r_matrix); 
-    dbg!(r_inverse); 
-
-    // constant wave speeds in the problem
-    let wave_speed_1 = 1.0;
-    let wave_speed_2 = -0.5;
-
-    // find an appropriate timestep using cfl
-    // take the lowest time_step and step through both at once
-    let cfl = 1.0;
-
-    let ts1 = get_time_step(soln1.delta_x, wave_speed_1, cfl); 
-    let ts2 = get_time_step(soln2.delta_x, wave_speed_2, cfl);
-
-    let time_step = ts1.min(ts2); 
-    
-    // 
-    // TODO: transform to uncoupled equations
-    // 
-
-    let mut time = 0.0;
-    let t_end = 10.;
-
-    loop {
-        if time + time_step > t_end {
-            soln1.update(&flux_type, t_end - time, wave_speed_1);
-            soln2.update(&flux_type, t_end - time, wave_speed_2);
-        } else {
-            soln1.update(&flux_type, time_step, wave_speed_1);
-            soln2.update(&flux_type, time_step, wave_speed_2);
-        }
-
-        time += time_step;
-        if time > t_end {
-            break;
-        }
-    }
-
-    // 
-    // TODO: transform back to initial equations
-    // 
-
-    // return the solutions
-    (soln1, soln2)
-}
-
 // helper function for timesteps
 fn get_time_step(delta_x: f64, wave_speed: f64, cfl: f64) -> f64 {
-    cfl * delta_x / wave_speed.abs() // wave speed absolute value to avoid negative timesteps
+    // wave speed absolute value to avoid negative timesteps
+    cfl * delta_x / wave_speed.abs()
 }
 
 // simple csv printing function

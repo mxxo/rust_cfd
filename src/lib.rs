@@ -68,10 +68,10 @@ pub struct Solution1d {
 }
 
 // ----------------------------------------------------------------------------
-// Flux functions 
+// Flux functions
 // ----------------------------------------------------------------------------
 
-// enum of supported flux functions 
+// enum of supported flux functions
 #[derive(Debug)]
 pub enum FluxType {
     LeftCell,
@@ -97,13 +97,13 @@ fn average_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f
 
 // F(Riemann solution)
 fn simple_riemann_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
-    // solution moving to the right, use information from the left cell 
-    if wavespeed > 0.0 { 
-        left_flux(boundary, past_values, wavespeed) 
+    // solution moving to the right, use information from the left cell
+    if wavespeed > 0.0 {
+        left_flux(boundary, past_values, wavespeed)
     }
-    // solution moving to the left, use information from the right cell 
-    else { 
-        right_flux(boundary, past_values, wavespeed) 
+    // solution moving to the left, use information from the right cell
+    else {
+        right_flux(boundary, past_values, wavespeed)
     }
 }
 
@@ -155,6 +155,15 @@ impl Solution1d {
         }
     }
 
+    // fill the solution cell values from a slice
+    pub fn fill(&mut self, values: &[f64]) {
+        assert_eq!(values.len(), self.cells.len());
+
+        for (i, mut cell) in self.cells.iter_mut().enumerate() {
+            cell.value = values[i];
+        }
+    }
+
     // update the solution
     pub fn update(&mut self, flux_type: &FluxType, timestep: f64, wavespeed: f64) {
         // use enum to dispatch the different flux functions
@@ -166,6 +175,7 @@ impl Solution1d {
         };
 
         // skim off previous timestep's values
+        // -- allocation seems to be factored out of each update call by optimizer
         let past_values: Vec<f64> = self.cells.iter().map(|cell| cell.value).collect();
 
         // update cells using the flux function
@@ -174,7 +184,7 @@ impl Solution1d {
             let right_boundary = &self.domain[index + 1];
 
             let net_flux = flux_fn(left_boundary, &past_values, wavespeed)
-                           - flux_fn(right_boundary, &past_values, wavespeed);
+                - flux_fn(right_boundary, &past_values, wavespeed);
 
             cell.advance(timestep, net_flux);
         }
@@ -192,7 +202,7 @@ impl Solution1d {
     }
 }
 
-// helper function for making a domain 
+// helper function for making a domain
 //
 // create `num_cell` equally sized pieces between left and right
 fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
