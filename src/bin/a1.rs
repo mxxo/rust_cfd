@@ -28,10 +28,10 @@ use std::path::Path;
 // prints out two solution files
 fn main() {
     // choose the flux function here
-    let flux_type = FluxType::LeftCell;
+    // let flux_type = FluxType::LeftCell;
     // let flux_type = FluxType::RightCell;
     // let flux_type = FluxType::CellAverage;
-    // let flux_type = FluxType::Riemann;
+    let flux_type = FluxType::Riemann;
 
     // first pde
     let soln1 = pde1(&flux_type);
@@ -93,8 +93,6 @@ fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
         values
     };
 
-    //dbg!(u0_ic);
-
     // ------------------------------------------------------------------
     // equation 2 initial conditions
     // ------------------------------------------------------------------
@@ -123,9 +121,6 @@ fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
 
     let r_inverse = r_matrix.try_inverse().expect("couldn't invert R matrix");
 
-    // println!("{}", r_matrix);
-    // println!("{}", r_inverse);
-
     // calculate transformed initial conditions
     // -- would be nice to make this more general
     let transform_soln = |index| -> (Solution1d, f64) {
@@ -149,25 +144,21 @@ fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
     let (v0, wavespeed_v0) = transform_soln(0);
     let (v1, wavespeed_v1) = transform_soln(1);
 
-    //(v0, v1)
-
     // solve both equations in v-space
     let time = 10.0;
     let cfl = 0.99;
 
     // v0
     let solved_v0 = step_pde(v0, flux_type, wavespeed_v0, time, cfl);
-    let (_, v0_values) = solved_v0.export(); 
+    let (_, v0_values) = solved_v0.export();
 
     // v1
     let solved_v1 = step_pde(v1, flux_type, wavespeed_v1, time, cfl);
-    let (_, v1_values) = solved_v1.export(); 
-
-    //(solved_v0, solved_v1)
+    let (_, v1_values) = solved_v1.export();
 
     // transform back to initial equations
-    let transform_back = |index| -> Solution1d { 
-        let e_vec = r_matrix.row(index); 
+    let transform_back = |index| -> Solution1d {
+        let e_vec = r_matrix.row(index);
         let v_ic: Vec<f64> = v0_values
             .iter()
             .zip(v1_values.iter())
@@ -191,7 +182,7 @@ fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
 }
 
 // helper method to solve pdes
-// -- method is kinda smelly... 3 floats in a row
+// -- signature is kinda smelly... 3 floats in a row
 fn step_pde(
     mut soln: Solution1d,
     flux_type: &FluxType,

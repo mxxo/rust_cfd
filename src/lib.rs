@@ -175,7 +175,7 @@ impl Solution1d {
         };
 
         // skim off previous timestep's values
-        // -- allocation seems to be factored out of each update call by optimizer
+        // -- allocation seems to be factored out this method by optimizer
         let past_values: Vec<f64> = self.cells.iter().map(|cell| cell.value).collect();
 
         // update cells using the flux function
