@@ -48,8 +48,6 @@ impl EulerState {
 
 /// Solve a Riemann problem between two Euler states iteratively.
 pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
-    // dbg!(left_ic.big_gamma());
-    // dbg!(right_ic.big_gamma());
 
     // check if there's a vacuum
     // first try was always true? probably written down wrong
@@ -64,102 +62,76 @@ pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
     // stop criterion
     const EPSILON: f64 = 10e-6;
 
+    // result struct 
     let mut soln: EulerSolution;
-
+    
     // pressure difference ratio that approaches 1.0
     let mut pressure_ratio: f64;
+
+    // quick and dirty update polymorphism
+    macro_rules! newton_update {
+        ($left:ident, $right:ident, $guess:ident) => {
+            $guess - ($left.pressure - $right.pressure) / ($left.dp_du - $right.dp_du)
+        };
+    }
 
     // carry out Newton's method
     loop {
         // check what the current solution is and update the guess accordingly
-        soln = match (u_guess < left_ic.velocity, u_guess > right_ic.velocity) {
-            
+        let left_shock = u_guess < left_ic.velocity;
+        let right_shock = u_guess > right_ic.velocity;
+
+        soln = match (left_shock, right_shock) {
             // shock, shock
             (true, true) => {
                 let left_state = Shock::create_shock(&left_ic, u_guess);
                 let right_state = Shock::create_shock(&right_ic, u_guess);
-                pressure_ratio = left_state.pressure / right_state.pressure;
 
-                u_guess = newton_update(
-                    u_guess,
-                    left_state.pressure,
-                    right_state.pressure,
-                    left_state.dp_du,
-                    right_state.dp_du,
-                );
+                pressure_ratio = left_state.pressure / right_state.pressure;
+                u_guess = newton_update!(left_state, right_state, u_guess);
 
                 EulerSolution::SCS(left_state, Contact { velocity: u_guess }, right_state)
             }
-            
+
             // rarefaction, shock
-            (false, true) => { 
+            (false, true) => {
                 let left_state = Rarefaction::create_rarefaction(&left_ic, u_guess);
                 let right_state = Shock::create_shock(&right_ic, u_guess);
-                pressure_ratio = left_state.pressure / right_state.pressure;
 
-                u_guess = newton_update(
-                    u_guess,
-                    left_state.pressure,
-                    right_state.pressure,
-                    left_state.dp_du,
-                    right_state.dp_du,
-                );
+                pressure_ratio = left_state.pressure / right_state.pressure;
+                u_guess = newton_update!(left_state, right_state, u_guess);
 
                 EulerSolution::RCS(left_state, Contact { velocity: u_guess }, right_state)
+            }
 
-            },
-            
             // shock, rarefaction
-            (true, false) => { 
+            (true, false) => {
                 let left_state = Shock::create_shock(&left_ic, u_guess);
                 let right_state = Rarefaction::create_rarefaction(&right_ic, u_guess);
-                pressure_ratio = left_state.pressure / right_state.pressure;
 
-                u_guess = newton_update(
-                    u_guess,
-                    left_state.pressure,
-                    right_state.pressure,
-                    left_state.dp_du,
-                    right_state.dp_du,
-                );
+                pressure_ratio = left_state.pressure / right_state.pressure;
+                u_guess = newton_update!(left_state, right_state, u_guess);
 
                 EulerSolution::SCR(left_state, Contact { velocity: u_guess }, right_state)
-            },
-            
+            }
+
             // rarefaction, rarefaction
-            (false, false) => { 
+            (false, false) => {
                 let left_state = Rarefaction::create_rarefaction(&left_ic, u_guess);
                 let right_state = Rarefaction::create_rarefaction(&right_ic, u_guess);
-                pressure_ratio = left_state.pressure / right_state.pressure;
 
-                u_guess = newton_update(
-                    u_guess,
-                    left_state.pressure,
-                    right_state.pressure,
-                    left_state.dp_du,
-                    right_state.dp_du,
-                );
+                pressure_ratio = left_state.pressure / right_state.pressure;
+                u_guess = newton_update!(left_state, right_state, u_guess);
 
                 EulerSolution::RCR(left_state, Contact { velocity: u_guess }, right_state)
-            }, 
+            }
         };
 
         // check if we can stop
         if (1.0 - pressure_ratio).abs() < EPSILON {
-            break soln; // return whichever solution it was 
+            break soln; // return whichever solution it was
         }
     }
-}
-
-/// Newton's method to solve Euler states
-fn newton_update(
-    current_guess: f64,
-    left_pressure: f64,
-    right_pressure: f64,
-    left_dp_du: f64,
-    right_dp_du: f64,
-) -> f64 {
-    current_guess - (left_pressure - right_pressure) / (left_dp_du - right_dp_du)
 }
 
 /// Async Newton's method for 1D Euler equations (some sort of async Stream?)
