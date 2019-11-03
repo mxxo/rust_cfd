@@ -12,7 +12,7 @@ use super::*;
 /// * C - Contact surface
 /// * R - Rarefaction/Expansion wave
 /// * V - Vacuum
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum EulerSolution {
     /// Shock, contact surface, shock
     SCS(Shock, Contact, Shock),
@@ -27,18 +27,61 @@ pub enum EulerSolution {
 }
 
 impl EulerSolution {
-    pub fn reconstruct(&self, time: f64) {}
+    /// Plot the exact solution at a given time.  
+    pub fn reconstruct(
+        &self,
+        left: EulerState,
+        right: EulerState,
+        bounds: DomainBounds,
+        time: f64,
+    ) -> Vec<(f64, f64)> {
+        match self {
+            EulerSolution::RVR => {
+                panic!("Unable to plot Rarefaction, Vacuum, Rarefaction solution")
+            }
+            EulerSolution::RCR(left_raref, contact, right_raref)  => { 
+                // left rarefaction
+                let (l_head, l_tail) = left_raref.extrapolate(&left, contact, time); 
+                // contact 
+                let contact_pos = contact.extrapolate(time); 
+                // right rarefaction
+                let (r_head, r_tail) = right_raref.extrapolate(&right, contact, time); 
+
+                vec![(l_head, 0.0), (l_tail, 0.0), (contact_pos, 0.0), (r_tail, 0.0), (r_head, 0.0)]
+            },
+            EulerSolution::RCS(left_raref, contact, right_shock)  => { 
+                // left rarefaction
+                let (l_head, l_tail) = left_raref.extrapolate(&left, contact, time); 
+                // contact 
+                let contact_pos = contact.extrapolate(time); 
+                // right shock
+                let shock_pos = right_shock.extrapolate(&right, time); 
+
+                vec![(l_head, 0.0), (l_tail, 0.0), (contact_pos, 0.0), (shock_pos, 0.0)]
+            },
+            
+            // some sort of tagging system for what type of data this is? 
+
+            _ => unimplemented!(), 
+        }
+    }
 }
 
 /// A contact surface between two gases.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Contact {
     /// Contact surface velocity (m/s).
     pub velocity: f64,
 }
 
+impl Contact {
+    pub fn extrapolate(&self, time: f64) -> f64 {
+        self.velocity * time
+    }
+}
+
 /// A shock wave in a gas.  
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Shock {
     /// The shock mach number (dimensionless).
     pub mach_number: f64,
@@ -59,6 +102,14 @@ impl Shock {
             mach_number,
             pressure,
             dp_du,
+        }
+    }
+
+    /// Extrapolate a shock given an initial state.
+    pub fn extrapolate(&self, state: &EulerState, time: f64) -> f64 {
+        match state.side {
+            StateSide::Left => time * (state.velocity - self.mach_number * state.sound_speed()),
+            StateSide::Right => time * (state.velocity + self.mach_number * state.sound_speed()),
         }
     }
 
@@ -92,7 +143,7 @@ impl Shock {
 }
 
 /// A rarefaction wave in a gas.  
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rarefaction {
     /// Sound speed for the rarefaction wave (m/s).
     pub sound_speed: f64,
@@ -103,6 +154,15 @@ pub struct Rarefaction {
 }
 
 impl Rarefaction {
+
+    /// Rarefaction density for a given velocity. 
+    pub fn density(&self, state: &EulerState, velocity: f64) -> f64 {
+        let local_sound_speed = Self::sound_speed(state, velocity); 
+        let local_pressure = Self::pressure(state, local_sound_speed); 
+        
+        state.gamma * local_pressure / (local_sound_speed * local_sound_speed)
+    }
+
     /// Create a rarefaction wave for a given state.
     pub fn create_rarefaction(state: &EulerState, velocity_guess: f64) -> Self {
         let sound_speed = Self::sound_speed(state, velocity_guess);
@@ -115,6 +175,27 @@ impl Rarefaction {
             dp_du,
         }
     }
+    
+    /// Extrapolate a rarefaction wave given the initial state and a contact surface.
+    /// Returns the positions of the rarefaction head and tail as `(x_head, x_tail)`
+    pub fn extrapolate(&self, state: &EulerState, contact: &Contact, time: f64) -> (f64, f64) { 
+        match state.side {
+            StateSide::Left => { 
+                let head = state.velocity - state.sound_speed(); 
+                let tail = contact.velocity - self.sound_speed; 
+                (head * time, tail * time)
+            },
+            StateSide::Right => { 
+                let head = state.velocity + state.sound_speed(); 
+                let tail = contact.velocity + self.sound_speed; 
+                (head * time, tail * time)
+            }, 
+        }
+    }
+    
+    // -- 
+    // Rarefaction relations 
+    // -- 
 
     /// Sound speed in the rarefaction wave.
     fn sound_speed(state: &EulerState, velocity_guess: f64) -> f64 {
@@ -126,13 +207,13 @@ impl Rarefaction {
             StateSide::Right => state.sound_speed() * (1.0 + gamma_term),
         }
     }
-
+    
     /// Rarefaction pressure for a given velocity.
     fn pressure(state: &EulerState, sound_speed: f64) -> f64 {
         let gamma_expo = 2.0 * state.gamma / (state.gamma - 1.0);
         state.pressure * (sound_speed / state.sound_speed()).powf(gamma_expo)
     }
-
+    
     /// Rarefaction pressure derivative relative to velocity for a given velocity.
     fn pressure_derivative(state: &EulerState, sound_speed: f64, pressure: f64) -> f64 {
         match state.side {

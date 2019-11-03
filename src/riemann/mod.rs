@@ -1,14 +1,11 @@
 //! Riemann solver for the 1D Euler equations
 //! following the method of Gottlieb and Groth.
 
-extern crate approx;
-use approx::assert_relative_eq;
-
 pub mod waves;
 use waves::{Contact, EulerSolution, Rarefaction, Shock};
 
 /// Euler equations state vector  
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct EulerState {
     /// density in kg/m3
     pub density: f64,
@@ -23,10 +20,21 @@ pub struct EulerState {
 }
 
 /// The type of calculation
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum StateSide {
     Left,
     Right,
+}
+
+/// The domain and interface between two initial states.
+#[derive(Debug, Clone, Copy)]
+pub struct DomainBounds {
+    /// Initial interface point (x_0).
+    pub interface: f64,
+    /// Left-most point.
+    pub left: f64,
+    /// Right-most point.
+    pub right: f64,
 }
 
 impl EulerState {
@@ -46,9 +54,8 @@ impl EulerState {
     }
 }
 
-/// Solve a Riemann problem between two Euler states iteratively.
+/// Exactly solve a Riemann problem between two Euler states iteratively.
 pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
-
     // check if there's a vacuum
     // first try was always true? probably written down wrong
     // if left_ic.big_gamma_left() - right_ic.big_gamma_right() > 0.0 {
@@ -62,9 +69,9 @@ pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
     // stop criterion
     const EPSILON: f64 = 10e-6;
 
-    // result struct 
+    // result struct
     let mut soln: EulerSolution;
-    
+
     // pressure difference ratio that approaches 1.0
     let mut pressure_ratio: f64;
 
@@ -161,6 +168,9 @@ fn z_term(left: &EulerState, right: &EulerState) -> f64 {
 mod tests {
 
     use super::*;
+
+    extern crate approx;
+    use approx::assert_relative_eq;
 
     #[test]
     fn test_sound_speed() {

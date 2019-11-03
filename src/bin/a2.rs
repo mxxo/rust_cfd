@@ -4,7 +4,7 @@
 //!   Iterative Riemann solver for the 1D Euler equations
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::riemann::{solve_euler, EulerState, StateSide};
+use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
 
 fn main() {
     // given as the same for both sides
@@ -31,8 +31,19 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 12e-3; // s
-    soln.reconstruct(t_final);
-
+    let vec_out = soln.reconstruct(
+        left_state,
+        right_state,
+        DomainBounds {
+            left: 0.0,
+            interface: 2.0,
+            right: 10.0,
+        },
+        t_final,
+    );
+    
+    dbg!(vec_out); 
+    
     // case 2
     let left_state = EulerState {
         density: 1.045,
@@ -53,7 +64,16 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 25e-3; // s
-    soln.reconstruct(t_final);
+    soln.reconstruct(
+        left_state,
+        right_state,
+        DomainBounds {
+            left: 0.0,
+            interface: 2.0,
+            right: 10.0,
+        },
+        t_final,
+    );
 
     // case 3
     let left_state = EulerState {
@@ -75,7 +95,16 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 35e-3; // s
-    soln.reconstruct(t_final);
+    soln.reconstruct(
+        left_state,
+        right_state,
+        DomainBounds {
+            left: 0.0,
+            interface: 5.0,
+            right: 10.0,
+        },
+        t_final,
+    );
 
     // case 4
     let left_state = EulerState {
@@ -97,5 +126,14 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 7e-3; // s
-    soln.reconstruct(t_final);
+    soln.reconstruct(
+        left_state,
+        right_state,
+        DomainBounds {
+            left: 0.0,
+            interface: 5.0,
+            right: 10.0,
+        },
+        t_final,
+    );
 }
