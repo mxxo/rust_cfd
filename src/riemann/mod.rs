@@ -134,10 +134,6 @@ pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
     }
 }
 
-/// Async Newton's method for 1D Euler equations (some sort of async Stream?)
-// select the first successful future?
-// https://rust-lang-nursery.github.io/futures-api-docs/0.3.0-alpha.19/futures/future/fn.select_ok.html
-
 /// Give an initial guess for the velocity following Groth and Gottlieb.
 fn velocity_guess(left: &EulerState, right: &EulerState) -> f64 {
     (left.big_gamma() * z_term(left, right) + right.big_gamma()) / (1.0 + z_term(left, right))
