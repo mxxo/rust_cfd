@@ -1,24 +1,13 @@
 //!  Finite-Volume methods assignment 2
-//!  Max Orok, October 2019
+//!  Max Orok, October-November 2019
 //! -----------------------------------------------------------------------------
-//! Iterative Riemann solver
+//!   Iterative Riemann solver for the 1D Euler equations
 //! -----------------------------------------------------------------------------
-//!  There are five possible wave patterns for 1D Euler
-//!
-//!  S - Shock
-//!  C - Contact surface
-//!  R - Rarefaction/Expansion wave
-//!  V - Vacuum
-//!
-//!  1. SCS
-//!  2. RCS
-//!  3. SCR
-//!  4. RCR
-//!  5. RVR (very rare)
-//!
-use rust_cfd::riemann::{solve_euler, EulerState};
+
+use rust_cfd::riemann::{solve_euler, EulerState, StateSide};
 
 fn main() {
+    // given as the same for both sides
     const GAMMA: f64 = 1.4;
 
     // case 1
@@ -27,6 +16,7 @@ fn main() {
         velocity: 164.83,
         pressure: 201.17e3,
         gamma: GAMMA,
+        side: StateSide::Left,
     };
 
     let right_state = EulerState {
@@ -34,14 +24,12 @@ fn main() {
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
+        side: StateSide::Right,
     };
 
     let t_final = 12e-3; // s
 
-    dbg!(&left_state);
-    dbg!(&right_state);
-
-    solve_euler(left_state, right_state, t_final);
+    dbg!(solve_euler(left_state, right_state, t_final));
 
     // case 2
     let left_state = EulerState {
@@ -49,20 +37,22 @@ fn main() {
         velocity: 200.0,
         pressure: 300e3,
         gamma: GAMMA,
+        side: StateSide::Left,
     };
     let right_state = EulerState {
         density: 3.483,
         velocity: 200.0,
         pressure: 300e3,
         gamma: GAMMA,
+        side: StateSide::Right,
     };
 
     let t_final = 25e-3; // s
 
-    dbg!(&left_state);
-    dbg!(&right_state);
+    // dbg!(&left_state);
+    // dbg!(&right_state);
 
-    solve_euler(left_state, right_state, t_final);
+    dbg!(solve_euler(left_state, right_state, t_final));
 
     // case 3
     let left_state = EulerState {
@@ -70,20 +60,22 @@ fn main() {
         velocity: -383.64,
         pressure: 91.88e3,
         gamma: GAMMA,
+        side: StateSide::Left,
     };
     let right_state = EulerState {
         density: 2.787,
         velocity: -216.97,
         pressure: 200e3,
         gamma: GAMMA,
+        side: StateSide::Right,
     };
 
     let t_final = 35e-3; // s
 
-    dbg!(&left_state);
-    dbg!(&right_state);
+    // dbg!(&left_state);
+    // dbg!(&right_state);
 
-    solve_euler(left_state, right_state, t_final);
+    dbg!(solve_euler(left_state, right_state, t_final));
 
     // case 4
     let left_state = EulerState {
@@ -91,18 +83,17 @@ fn main() {
         velocity: 0.0,
         pressure: 404.4e3,
         gamma: GAMMA,
+        side: StateSide::Left,
     };
     let right_state = EulerState {
         density: 1.408,
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
+        side: StateSide::Right,
     };
 
     let t_final = 7e-3; // s
 
-    dbg!(&left_state);
-    dbg!(&right_state);
-
-    solve_euler(left_state, right_state, t_final);
+    dbg!(solve_euler(left_state, right_state, t_final));
 }
