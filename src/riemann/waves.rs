@@ -26,6 +26,13 @@ pub enum EulerSolution {
     RVR,
 }
 
+impl EulerSolution { 
+    pub fn reconstruct(&self, time: f64) { 
+        
+    }
+}
+
+
 /// A contact surface between two gases.
 #[derive(Debug)]
 pub struct Contact {

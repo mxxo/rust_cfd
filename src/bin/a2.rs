@@ -26,10 +26,12 @@ fn main() {
         gamma: GAMMA,
         side: StateSide::Right,
     };
+    
+    let soln = solve_euler(left_state, right_state); 
+    dbg!(&soln); 
 
     let t_final = 12e-3; // s
-
-    dbg!(solve_euler(left_state, right_state, t_final));
+    soln.reconstruct(t_final); 
 
     // case 2
     let left_state = EulerState {
@@ -47,12 +49,12 @@ fn main() {
         side: StateSide::Right,
     };
 
+
+    let soln = solve_euler(left_state, right_state); 
+    dbg!(&soln); 
+
     let t_final = 25e-3; // s
-
-    // dbg!(&left_state);
-    // dbg!(&right_state);
-
-    dbg!(solve_euler(left_state, right_state, t_final));
+    soln.reconstruct(t_final); 
 
     // case 3
     let left_state = EulerState {
@@ -70,12 +72,11 @@ fn main() {
         side: StateSide::Right,
     };
 
+    let soln = solve_euler(left_state, right_state); 
+    dbg!(&soln); 
+
     let t_final = 35e-3; // s
-
-    // dbg!(&left_state);
-    // dbg!(&right_state);
-
-    dbg!(solve_euler(left_state, right_state, t_final));
+    soln.reconstruct(t_final); 
 
     // case 4
     let left_state = EulerState {
@@ -93,7 +94,10 @@ fn main() {
         side: StateSide::Right,
     };
 
-    let t_final = 7e-3; // s
+    let soln = solve_euler(left_state, right_state); 
+    dbg!(&soln); 
 
-    dbg!(solve_euler(left_state, right_state, t_final));
+    let t_final = 7e-3; // s
+    soln.reconstruct(t_final); 
+
 }

@@ -47,9 +47,9 @@ impl EulerState {
 }
 
 /// Solve a Riemann problem between two Euler states iteratively.
-pub fn solve_euler(left_ic: EulerState, right_ic: EulerState, t_final: f64) -> EulerSolution {
-    dbg!(left_ic.big_gamma());
-    dbg!(right_ic.big_gamma());
+pub fn solve_euler(left_ic: EulerState, right_ic: EulerState) -> EulerSolution {
+    // dbg!(left_ic.big_gamma());
+    // dbg!(right_ic.big_gamma());
 
     // check if there's a vacuum
     // first try was always true? probably written down wrong
