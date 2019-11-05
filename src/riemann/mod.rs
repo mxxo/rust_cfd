@@ -4,6 +4,8 @@
 pub mod waves;
 use waves::{Contact, EulerSolution, Rarefaction, Shock};
 
+use std::collections::VecDeque;
+
 /// Euler equations state vector  
 #[derive(Debug, Clone, Copy)]
 pub struct EulerState {

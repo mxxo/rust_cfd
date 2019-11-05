@@ -41,9 +41,9 @@ fn main() {
         },
         t_final,
     );
-    
-    dbg!(vec_out); 
-    
+
+    dbg!(vec_out);
+
     // case 2
     let left_state = EulerState {
         density: 1.045,
