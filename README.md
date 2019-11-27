@@ -2,6 +2,7 @@
 
 ## Completed assignments 
 * **a1** --- Godunov's method for linear PDEs (1D) 
+* **a2** --- Exact Riemann solver for the Euler equations (1D) 
 
 Build all assignments using `cargo build --release`
 

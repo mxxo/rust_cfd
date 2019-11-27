@@ -92,7 +92,6 @@ impl EulerSolution {
                 let left_state_star = *left_data.last().unwrap();
                 res.extend(left_data);
 
-
                 // right wave data
                 let right_data = $right_wave.plot(&right, $contact, time);
                 // get state at leftmost point -- the right_star's data
@@ -100,13 +99,12 @@ impl EulerSolution {
 
                 res.extend(right_data);
 
-//                dbg!(&res);
-
+                //                dbg!(&res);
 
                 // plot contact surface using left and right wave information
                 res.extend($contact.plot(time, left_state_star, right_state_star));
 
- //               dbg!(&res);
+                //               dbg!(&res);
 
                 res.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
                 res
@@ -347,7 +345,6 @@ impl Rarefaction {
 
     /// Plot the rarefaction wave
     pub fn plot(&self, state: &EulerState, contact: &Contact, time: f64) -> Vec<DataPoint> {
-
         // choose 12 points to plot -- arbitrary
         let interpolation_points = 20;
         // + head, + tail
@@ -361,14 +358,12 @@ impl Rarefaction {
 
         let mut raref_data: Vec<_> = Vec::with_capacity(total_points);
 
-        for _ in 0..total_points+1 {
-
-            raref_data.push(
-                DataPoint {
-                    coord: Self::extrapolate(state, curr_vel, Self::sound_speed(state, curr_vel), time),
-                    density: Self::density(state, curr_vel),
-                    velocity: curr_vel,
-                    pressure: Self::pressure(state, Self::sound_speed(state, curr_vel)),
+        for _ in 0..total_points + 1 {
+            raref_data.push(DataPoint {
+                coord: Self::extrapolate(state, curr_vel, Self::sound_speed(state, curr_vel), time),
+                density: Self::density(state, curr_vel),
+                velocity: curr_vel,
+                pressure: Self::pressure(state, Self::sound_speed(state, curr_vel)),
             });
 
             curr_vel += velocity_step;
@@ -377,8 +372,18 @@ impl Rarefaction {
             }
         }
 
-        let head_pos = Self::extrapolate(state, state.velocity, Self::sound_speed(state, state.velocity), time);
-        let tail_pos = Self::extrapolate(state, contact.velocity, Self::sound_speed(state, contact.velocity), time);
+        let head_pos = Self::extrapolate(
+            state,
+            state.velocity,
+            Self::sound_speed(state, state.velocity),
+            time,
+        );
+        let tail_pos = Self::extrapolate(
+            state,
+            contact.velocity,
+            Self::sound_speed(state, contact.velocity),
+            time,
+        );
 
         if head_pos > tail_pos {
             raref_data.reverse()
@@ -389,13 +394,9 @@ impl Rarefaction {
 
     /// Extrapolate a rarefaction wave given the initial state and a contact surface.
     pub fn extrapolate(state: &EulerState, velocity: f64, sound_speed: f64, time: f64) -> f64 {
-         match state.side {
-            StateSide::Left => {
-                (velocity - sound_speed) * time
-            }
-            StateSide::Right => {
-                (velocity + sound_speed) * time
-            }
+        match state.side {
+            StateSide::Left => (velocity - sound_speed) * time,
+            StateSide::Right => (velocity + sound_speed) * time,
         }
     }
 

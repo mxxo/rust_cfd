@@ -4,8 +4,8 @@
 //!   Iterative Riemann solver for the 1D Euler equations
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
 use rust_cfd::riemann::waves::DataPoint;
+use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
 
 // given as the same for both gases
 const GAMMA: f64 = 1.4;
@@ -17,9 +17,8 @@ fn main() {
     case_4();
 }
 
-
 fn case_1() {
-     let left_state = EulerState {
+    let left_state = EulerState {
         density: 2.281,
         velocity: 164.83,
         pressure: 201.17e3,
@@ -53,13 +52,21 @@ fn case_1() {
     println!("<< case 1 >>\n");
     println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, density, velocity, pressure} in vec_out {
-        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
+    for DataPoint {
+        coord,
+        density,
+        velocity,
+        pressure,
+    } in vec_out
+    {
+        println!(
+            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            coord, density, velocity, pressure
+        );
     }
 }
 
 fn case_2() {
-
     let left_state = EulerState {
         density: 1.045,
         velocity: 200.0,
@@ -93,13 +100,21 @@ fn case_2() {
     println!("<< case 2 >>\n");
     println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, density, velocity, pressure} in vec_out {
-        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
+    for DataPoint {
+        coord,
+        density,
+        velocity,
+        pressure,
+    } in vec_out
+    {
+        println!(
+            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            coord, density, velocity, pressure
+        );
     }
 }
 
 fn case_3() {
-
     let left_state = EulerState {
         density: 1.598,
         velocity: -383.64,
@@ -132,13 +147,21 @@ fn case_3() {
     println!("<< case 3 >>\n");
     println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, density, velocity, pressure} in vec_out {
-        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
+    for DataPoint {
+        coord,
+        density,
+        velocity,
+        pressure,
+    } in vec_out
+    {
+        println!(
+            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            coord, density, velocity, pressure
+        );
     }
 }
 
 fn case_4() {
-
     let left_state = EulerState {
         density: 4.696,
         velocity: 0.0,
@@ -171,10 +194,16 @@ fn case_4() {
     println!("<< case 4 >>\n");
     println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, density, velocity, pressure} in vec_out {
-        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
+    for DataPoint {
+        coord,
+        density,
+        velocity,
+        pressure,
+    } in vec_out
+    {
+        println!(
+            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
+            coord, density, velocity, pressure
+        );
     }
 }
-
-
-
