@@ -13,8 +13,8 @@ const GAMMA: f64 = 1.4;
 fn main() {
     case_1();
     case_2();
-//    case_3();
-//    case_4();
+    case_3();
+    case_4();
 }
 
 
