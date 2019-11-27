@@ -5,13 +5,21 @@
 //! -----------------------------------------------------------------------------
 
 use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
+use rust_cfd::riemann::waves::DataPoint;
+
+// given as the same for both gases
+const GAMMA: f64 = 1.4;
 
 fn main() {
-    // given as the same for both sides
-    const GAMMA: f64 = 1.4;
+//    case_1();
+//    case_2();
+    case_3();
+//    case_4();
+}
 
-    // case 1
-    let left_state = EulerState {
+
+fn case_1() {
+     let left_state = EulerState {
         density: 2.281,
         velocity: 164.83,
         pressure: 201.17e3,
@@ -42,9 +50,16 @@ fn main() {
         t_final,
     );
 
-    dbg!(vec_out);
+    println!("<< case 1 >>\n");
+    println!("density");
 
-    // case 2
+    for DataPoint{coord, value} in vec_out {
+        println!("{:.4}\t{:.4}", coord, value);
+    }
+}
+
+fn case_2() {
+
     let left_state = EulerState {
         density: 1.045,
         velocity: 200.0,
@@ -64,7 +79,7 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 25e-3; // s
-    soln.reconstruct(
+    let vec_out = soln.reconstruct(
         left_state,
         right_state,
         DomainBounds {
@@ -75,7 +90,16 @@ fn main() {
         t_final,
     );
 
-    // case 3
+    println!("<< case 2 >>\n");
+    println!("density");
+
+    for DataPoint{coord, value} in vec_out {
+        println!("{:.4}\t{:.4}", coord, value);
+    }
+}
+
+fn case_3() {
+
     let left_state = EulerState {
         density: 1.598,
         velocity: -383.64,
@@ -95,7 +119,7 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 35e-3; // s
-    soln.reconstruct(
+    let vec_out = soln.reconstruct(
         left_state,
         right_state,
         DomainBounds {
@@ -105,8 +129,16 @@ fn main() {
         },
         t_final,
     );
+    println!("<< case 3 >>\n");
+    println!("density");
 
-    // case 4
+    for DataPoint{coord, value} in vec_out {
+        println!("{:.4}\t{:.4}", coord, value);
+    }
+}
+
+fn case_4() {
+
     let left_state = EulerState {
         density: 4.696,
         velocity: 0.0,
@@ -126,7 +158,7 @@ fn main() {
     dbg!(&soln);
 
     let t_final = 7e-3; // s
-    soln.reconstruct(
+    let vec_out = soln.reconstruct(
         left_state,
         right_state,
         DomainBounds {
@@ -136,4 +168,14 @@ fn main() {
         },
         t_final,
     );
+    println!("<< case 4 >>\n");
+    println!("density");
+
+    for DataPoint{coord, value} in vec_out {
+        println!("{:.4}\t{:.4}", coord, value);
+    }
+
 }
+
+
+

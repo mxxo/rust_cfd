@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// Euler solution wave patterns in 1D.  
+/// Euler solution wave patterns in 1D.
 ///
 /// There are five possible outcomes.
 /// In practice, vacuum is extremely rare, and usually neglected.
@@ -27,7 +27,7 @@ pub enum EulerSolution {
 }
 
 impl EulerSolution {
-    /// Plot the exact solution at a given time.  
+    /// Plot the exact solution at a given time.
     pub fn reconstruct(
         &self,
         left: EulerState,
@@ -44,8 +44,15 @@ impl EulerSolution {
             data_point.coord += bounds.interface;
         }
 
+        // only keep those points inside the bounds
+        soln.retain(|&data_point| {
+            data_point.coord > bounds.left && data_point.coord < bounds.right
+        });
+
         // switch to deque for easy inserts at the front
         let mut soln = VecDeque::from(soln);
+
+        // -- tag on start and end points
 
         // check whether left state is still on the domain and
         // and if so add points at the start using the left state
@@ -77,18 +84,25 @@ impl EulerSolution {
 
                 // left wave data
                 let left_data = $left_wave.plot(&left, $contact, time);
-                // get state at rightmost point
+                // get state at rightmost point -- will be the left_star's data
                 let left_state_star = *left_data.last().unwrap();
                 res.extend(left_data);
 
+
                 // right wave data
                 let right_data = $right_wave.plot(&right, $contact, time);
-                // get state at rightmost point
-                let right_state_star = *right_data.last().unwrap();
+                // get state at leftmost point -- the right_star's data
+                let right_state_star = right_data[0];
+
                 res.extend(right_data);
+
+                dbg!(&res);
+
 
                 // plot contact surface using left and right wave information
                 res.extend($contact.plot(time, left_state_star, right_state_star));
+
+                dbg!(&res);
 
                 res.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
                 res
@@ -119,9 +133,9 @@ impl EulerSolution {
 /// A 1D data point.
 pub struct DataPoint {
     /// Coordinate
-    coord: f64,
+    pub coord: f64,
     /// Value
-    value: f64,
+    pub value: f64,
 }
 
 /// A contact surface between two gases.
@@ -134,6 +148,9 @@ pub struct Contact {
 impl Contact {
     pub fn plot(&self, time: f64, left_state: DataPoint, right_state: DataPoint) -> Vec<DataPoint> {
         // rough plot for now
+
+        let shift = 0.0001;
+
         // put our known points in the result vector
         vec![
             DataPoint {
@@ -143,6 +160,10 @@ impl Contact {
             DataPoint {
                 coord: self.extrapolate(time),
                 value: left_state.value,
+            },
+            DataPoint {
+                coord: self.extrapolate(time) + shift,
+                value: right_state.value,
             },
             DataPoint {
                 coord: right_state.coord,
@@ -156,7 +177,7 @@ impl Contact {
     }
 }
 
-/// A shock wave in a gas.  
+/// A shock wave in a gas.
 #[derive(Debug, Clone, Copy)]
 pub struct Shock {
     /// The shock mach number (dimensionless).
@@ -198,7 +219,7 @@ impl Shock {
                     // contact surface data
                     DataPoint {
                         coord: shock_coord + shift,
-                        value: Rarefaction::density(state, contact.velocity),
+                        value: self.density(state),
                     },
                 ]
             }
@@ -207,12 +228,12 @@ impl Shock {
                     // contact surface data
                     DataPoint {
                         coord: shock_coord,
-                        value: Rarefaction::density(state, contact.velocity),
+                        value: self.density(state),
                     },
                     // right state data
                     DataPoint {
                         coord: shock_coord + shift,
-                        value: Rarefaction::density(state, state.velocity),
+                        value: state.density,
                     },
                 ]
             }
@@ -225,6 +246,21 @@ impl Shock {
             StateSide::Left => time * (state.velocity - self.mach_number * state.sound_speed()),
             StateSide::Right => time * (state.velocity + self.mach_number * state.sound_speed()),
         }
+    }
+
+    /// Calculate adjusted density in a shocked state.
+    /// Typically done after the iterative process is over.
+    pub fn density(&self, state: &EulerState) -> f64 {
+        state.gamma * self.pressure / (self.sound_speed(state) * self.sound_speed(state))
+    }
+
+    /// Calculate adjusted sound speed because of a shock.
+    /// Typically done after the iterative process is over.
+    pub fn sound_speed(&self, state: &EulerState) -> f64 {
+        let top_term = state.gamma + 1.0 + (state.gamma - 1.0) * self.pressure / state.pressure;
+        let bottom_term = state.gamma + 1.0 + (state.gamma - 1.0) * state.pressure / self.pressure;
+
+        state.sound_speed() * (top_term / bottom_term).sqrt()
     }
 
     // --
@@ -260,7 +296,7 @@ impl Shock {
     }
 }
 
-/// A rarefaction wave in a gas.  
+/// A rarefaction wave in a gas.
 #[derive(Debug, Clone, Copy)]
 pub struct Rarefaction {
     /// Sound speed for the rarefaction wave (m/s).
@@ -318,8 +354,8 @@ impl Rarefaction {
                 (head_pos, tail_pos)
             }
             StateSide::Right => {
-                let head_pos = state.velocity + state.sound_speed() * time;
-                let tail_pos = contact.velocity + self.sound_speed * time;
+                let head_pos = (state.velocity + state.sound_speed()) * time;
+                let tail_pos = (contact.velocity + self.sound_speed) * time;
                 (head_pos, tail_pos)
             }
         }
