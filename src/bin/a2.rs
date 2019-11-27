@@ -11,9 +11,9 @@ use rust_cfd::riemann::waves::DataPoint;
 const GAMMA: f64 = 1.4;
 
 fn main() {
-//    case_1();
-//    case_2();
-    case_3();
+    case_1();
+    case_2();
+//    case_3();
 //    case_4();
 }
 
@@ -51,10 +51,10 @@ fn case_1() {
     );
 
     println!("<< case 1 >>\n");
-    println!("density");
+    println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, value} in vec_out {
-        println!("{:.4}\t{:.4}", coord, value);
+    for DataPoint{coord, density, velocity, pressure} in vec_out {
+        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
     }
 }
 
@@ -91,10 +91,10 @@ fn case_2() {
     );
 
     println!("<< case 2 >>\n");
-    println!("density");
+    println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, value} in vec_out {
-        println!("{:.4}\t{:.4}", coord, value);
+    for DataPoint{coord, density, velocity, pressure} in vec_out {
+        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
     }
 }
 
@@ -130,10 +130,10 @@ fn case_3() {
         t_final,
     );
     println!("<< case 3 >>\n");
-    println!("density");
+    println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, value} in vec_out {
-        println!("{:.4}\t{:.4}", coord, value);
+    for DataPoint{coord, density, velocity, pressure} in vec_out {
+        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
     }
 }
 
@@ -169,12 +169,11 @@ fn case_4() {
         t_final,
     );
     println!("<< case 4 >>\n");
-    println!("density");
+    println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint{coord, value} in vec_out {
-        println!("{:.4}\t{:.4}", coord, value);
+    for DataPoint{coord, density, velocity, pressure} in vec_out {
+        println!("{:.4}\t{:.4}\t{:.4}\t{:.4}", coord, density, velocity, pressure);
     }
-
 }
 
 

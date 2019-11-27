@@ -59,7 +59,9 @@ impl EulerSolution {
         if bounds.left < soln.front().unwrap().coord {
             soln.push_front(DataPoint {
                 coord: bounds.left,
-                value: left.density,
+                density: left.density,
+                velocity: left.velocity,
+                pressure: left.pressure,
             });
         }
 
@@ -68,7 +70,9 @@ impl EulerSolution {
         if bounds.right > soln.back().unwrap().coord {
             soln.push_back(DataPoint {
                 coord: bounds.right,
-                value: right.density,
+                density: right.density,
+                velocity: right.velocity,
+                pressure: right.pressure,
             });
         }
 
@@ -130,12 +134,16 @@ impl EulerSolution {
 }
 
 #[derive(Debug, Clone, Copy)]
-/// A 1D data point.
+/// A 1D primitive state variables data point.
 pub struct DataPoint {
     /// Coordinate
     pub coord: f64,
-    /// Value
-    pub value: f64,
+    /// Density
+    pub density: f64,
+    /// Velocity
+    pub velocity: f64,
+    /// Pressure
+    pub pressure: f64,
 }
 
 /// A contact surface between two gases.
@@ -155,19 +163,27 @@ impl Contact {
         vec![
             DataPoint {
                 coord: left_state.coord,
-                value: left_state.value,
+                density: left_state.density,
+                velocity: left_state.velocity,
+                pressure: left_state.pressure,
             },
             DataPoint {
                 coord: self.extrapolate(time),
-                value: left_state.value,
+                density: left_state.density,
+                velocity: left_state.velocity,
+                pressure: left_state.pressure,
             },
             DataPoint {
                 coord: self.extrapolate(time) + shift,
-                value: right_state.value,
+                density: right_state.density,
+                velocity: right_state.velocity,
+                pressure: right_state.pressure,
             },
             DataPoint {
                 coord: right_state.coord,
-                value: right_state.value,
+                density: right_state.density,
+                velocity: right_state.velocity,
+                pressure: right_state.pressure,
             },
         ]
     }
@@ -214,26 +230,34 @@ impl Shock {
                     // left state data first
                     DataPoint {
                         coord: shock_coord,
-                        value: state.density,
+                        density: state.density,
+                        velocity: state.velocity,
+                        pressure: state.pressure,
                     },
                     // contact surface data
                     DataPoint {
                         coord: shock_coord + shift,
-                        value: self.density(state),
+                        density: self.density(state),
+                        velocity: contact.velocity,
+                        pressure: self.pressure,
                     },
                 ]
             }
             StateSide::Right => {
                 vec![
-                    // contact surface data
+                    // contact surface data first
                     DataPoint {
                         coord: shock_coord,
-                        value: self.density(state),
+                        density: self.density(state),
+                        velocity: contact.velocity,
+                        pressure: self.pressure,
                     },
                     // right state data
                     DataPoint {
                         coord: shock_coord + shift,
-                        value: state.density,
+                        density: state.density,
+                        velocity: state.velocity,
+                        pressure: state.pressure,
                     },
                 ]
             }
@@ -328,13 +352,17 @@ impl Rarefaction {
         // find head rarefaction wave's density given state's velocity
         let head_data = DataPoint {
             coord: head_pos,
-            value: Self::density(state, state.velocity),
+            density: Self::density(state, state.velocity),
+            velocity: state.velocity,
+            pressure: Self::pressure(state, Self::sound_speed(state, state.velocity)),
         };
 
         // find rarefaction wave tail's density given the contact surface
         let tail_data = DataPoint {
             coord: tail_pos,
-            value: Self::density(state, contact.velocity),
+            density: Self::density(state, contact.velocity),
+            velocity: contact.velocity,
+            pressure: Self::pressure(state, Self::sound_speed(state, contact.velocity)),
         };
 
         if head_data.coord < tail_data.coord {
@@ -384,13 +412,13 @@ impl Rarefaction {
         }
     }
 
-    /// Rarefaction pressure for a given velocity.
+    /// Rarefaction pressure for a given sound speed.
     fn pressure(state: &EulerState, sound_speed: f64) -> f64 {
         let gamma_expo = 2.0 * state.gamma / (state.gamma - 1.0);
         state.pressure * (sound_speed / state.sound_speed()).powf(gamma_expo)
     }
 
-    /// Rarefaction pressure derivative relative to velocity for a given velocity.
+    /// Rarefaction pressure derivative relative to velocity for a given sound speed.
     fn pressure_derivative(state: &EulerState, sound_speed: f64, pressure: f64) -> f64 {
         match state.side {
             StateSide::Left => -state.gamma * pressure / sound_speed,
