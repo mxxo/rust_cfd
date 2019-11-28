@@ -6,6 +6,7 @@
 extern crate approx;
 
 use crate::riemann::DomainBounds;
+use std::ops::{Mul, Sub};
 
 // the solution vector
 #[derive(Debug)]
@@ -63,6 +64,18 @@ pub struct EulerCell1d {
 
 impl EulerCell1d {
 
+    /// Advance this cell forward in time.
+    pub fn advance(&mut self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) {
+        // flux entering - flux leaving
+        let net_flux = left_flux - right_flux;
+        let scaling_factor = timestep / (self.right - self.left);
+        let (new_dens, new_mom, new_energ) = net_flux * scaling_factor;
+        self.density = new_dens;
+        self.momentum = new_mom;
+        self.energy = new_energ;
+    }
+
+
     /// Make a new Euler state from primitive variables.
     pub fn new(state: PrimitiveState, bounds: (f64, f64)) -> Self {
         let (left, right) = bounds;
@@ -84,7 +97,7 @@ impl EulerCell1d {
 
 /// An Euler flux set.
 #[derive(Debug, Clone, Copy)]
-struct EulerFlux {
+pub struct EulerFlux {
     pub density_flux: f64,
     pub momentum_flux: f64,
     pub energy_flux: f64,
@@ -110,8 +123,33 @@ impl EulerFlux {
     fn get_energy_flux(state: PrimitiveState) -> f64 {
         state.velocity * (state.gamma * state.pressure / (state.gamma - 1.0) + (state.density * state.velocity * state.velocity / 2.0))
     }
+
 }
 
+// net flux
+impl Sub for EulerFlux {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            density_flux: self.density_flux - other.density_flux,
+            momentum_flux: self.momentum_flux - other.momentum_flux,
+            energy_flux: self.energy_flux - other.energy_flux,
+        }
+    }
+}
+
+impl Mul<f64> for EulerFlux {
+    type Output = (f64, f64, f64);
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        (
+            self.density_flux * rhs,
+            self.momentum_flux * rhs,
+            self.energy_flux * rhs,
+        )
+    }
+}
 
 // impl Cell1d {
 //     // step this cell forward
