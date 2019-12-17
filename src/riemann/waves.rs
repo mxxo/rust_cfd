@@ -41,13 +41,19 @@ impl EulerSolution {
 
         // shift everyone over by the correct amount
         for data_point in &mut soln {
-            data_point.coord += bounds.interface;
+            //let shift = (bounds.left - bounds.interface).abs().min((bounds.right - bounds.interface).abs());
+            data_point.coord += bounds.interface; // bounds.interface;
         }
 
         // only keep those points inside the bounds
         soln.retain(|&data_point| {
             data_point.coord > bounds.left && data_point.coord < bounds.right
         });
+
+         // shift everyone back (debug)
+        for data_point in &mut soln {
+            data_point.coord -= bounds.interface;
+        }
 
         // switch to deque for easy inserts at the front
         let mut soln = VecDeque::from(soln);
@@ -87,24 +93,30 @@ impl EulerSolution {
                 let mut res = Vec::new();
 
                 // left wave data
-                let left_data = $left_wave.plot(&left, $contact, time);
+                let mut left_data = $left_wave.plot(&left, $contact, time);
+               // left_data.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
+
                 // get state at rightmost point -- will be the left_star's data
                 let left_state_star = *left_data.last().unwrap();
+                dbg!(&left_state_star);
                 res.extend(left_data);
 
                 // right wave data
-                let right_data = $right_wave.plot(&right, $contact, time);
+                let mut right_data = $right_wave.plot(&right, $contact, time);
+                dbg!(&right_data);
                 // get state at leftmost point -- the right_star's data
+                right_data.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
+
                 let right_state_star = right_data[0];
+                dbg!(&right_state_star);
 
                 res.extend(right_data);
 
-                //                dbg!(&res);
 
                 // plot contact surface using left and right wave information
                 res.extend($contact.plot(time, left_state_star, right_state_star));
 
-                //               dbg!(&res);
+                dbg!($contact.plot(time, left_state_star, right_state_star));
 
                 res.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
                 res
@@ -162,25 +174,25 @@ impl Contact {
             DataPoint {
                 coord: left_state.coord,
                 density: left_state.density,
-                velocity: left_state.velocity,
+                velocity: self.velocity,
                 pressure: left_state.pressure,
             },
             DataPoint {
                 coord: self.extrapolate(time),
                 density: left_state.density,
-                velocity: left_state.velocity,
+                velocity: self.velocity,
                 pressure: left_state.pressure,
             },
             DataPoint {
                 coord: self.extrapolate(time) + shift,
                 density: right_state.density,
-                velocity: right_state.velocity,
+                velocity: self.velocity,
                 pressure: right_state.pressure,
             },
             DataPoint {
                 coord: right_state.coord,
                 density: right_state.density,
-                velocity: right_state.velocity,
+                velocity: self.velocity,
                 pressure: right_state.pressure,
             },
         ]

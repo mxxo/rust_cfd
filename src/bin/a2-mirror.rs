@@ -1,8 +1,5 @@
-//!  Finite-Volume methods assignment 2
-//!  Max Orok, October-November 2019
-//! -----------------------------------------------------------------------------
-//!   Iterative Riemann solver for the 1D Euler equations
-//! -----------------------------------------------------------------------------
+//! Reflected problems from assignment 2
+//! Max Orok - November 2019
 
 use rust_cfd::riemann::waves::DataPoint;
 use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
@@ -18,20 +15,20 @@ fn main() {
 }
 
 fn case_1() {
-    let left_state = EulerState {
+    let right_state = EulerState {
         density: 2.281,
-        velocity: 164.83,
+        velocity: -164.83,
         pressure: 201.17e3,
         gamma: GAMMA,
-        side: StateSide::Left,
+        side: StateSide::Right,
     };
 
-    let right_state = EulerState {
+    let left_state = EulerState {
         density: 1.408,
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
-        side: StateSide::Right,
+        side: StateSide::Left,
     };
 
     let soln = solve_euler(left_state, right_state);
@@ -43,7 +40,7 @@ fn case_1() {
         right_state,
         DomainBounds {
             left: 0.0,
-            interface: 2.0,
+            interface: 8.0,
             right: 10.0,
         },
         t_final,
@@ -67,19 +64,19 @@ fn case_1() {
 }
 
 fn case_2() {
-    let left_state = EulerState {
-        density: 1.045,
-        velocity: 200.0,
-        pressure: 300e3,
-        gamma: GAMMA,
-        side: StateSide::Left,
-    };
     let right_state = EulerState {
-        density: 3.483,
-        velocity: 200.0,
+        density: 1.045,
+        velocity: -200.0,
         pressure: 300e3,
         gamma: GAMMA,
         side: StateSide::Right,
+    };
+    let left_state = EulerState {
+        density: 3.483,
+        velocity: -200.0,
+        pressure: 300e3,
+        gamma: GAMMA,
+        side: StateSide::Left,
     };
 
     let soln = solve_euler(left_state, right_state);
@@ -91,7 +88,7 @@ fn case_2() {
         right_state,
         DomainBounds {
             left: 0.0,
-            interface: 2.0,
+            interface: 8.0,
             right: 10.0,
         },
         t_final,
@@ -115,19 +112,19 @@ fn case_2() {
 }
 
 fn case_3() {
-    let left_state = EulerState {
+    let right_state = EulerState {
         density: 1.598,
-        velocity: -383.64,
+        velocity: 383.64,
         pressure: 91.88e3,
         gamma: GAMMA,
-        side: StateSide::Left,
+        side: StateSide::Right,
     };
-    let right_state = EulerState {
+    let left_state = EulerState {
         density: 2.787,
-        velocity: -216.97,
+        velocity: 216.97,
         pressure: 200e3,
         gamma: GAMMA,
-        side: StateSide::Right,
+        side: StateSide::Left,
     };
 
     let soln = solve_euler(left_state, right_state);
@@ -162,19 +159,19 @@ fn case_3() {
 }
 
 fn case_4() {
-    let left_state = EulerState {
+    let right_state = EulerState {
         density: 4.696,
         velocity: 0.0,
         pressure: 404.4e3,
         gamma: GAMMA,
-        side: StateSide::Left,
+        side: StateSide::Right,
     };
-    let right_state = EulerState {
+    let left_state = EulerState {
         density: 1.408,
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
-        side: StateSide::Right,
+        side: StateSide::Left,
     };
 
     let soln = solve_euler(left_state, right_state);
