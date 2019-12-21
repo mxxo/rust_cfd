@@ -43,6 +43,7 @@ impl EulerSolution {
         for data_point in &mut soln {
             //let shift = (bounds.left - bounds.interface).abs().min((bounds.right - bounds.interface).abs());
             data_point.coord += bounds.interface; // bounds.interface;
+            // dbg!(data_point.coord);
         }
 
         // only keep those points inside the bounds
@@ -50,10 +51,10 @@ impl EulerSolution {
             data_point.coord > bounds.left && data_point.coord < bounds.right
         });
 
-         // shift everyone back (debug)
-        for data_point in &mut soln {
-            data_point.coord -= bounds.interface;
-        }
+        //  // shift everyone back (debug)
+        // for data_point in &mut soln {
+        //     data_point.coord -= bounds.interface;
+        // }
 
         // switch to deque for easy inserts at the front
         let mut soln = VecDeque::from(soln);
@@ -85,6 +86,34 @@ impl EulerSolution {
         soln
     }
 
+    /// Find the exact solution at a given time and position.
+    pub fn reconstruct_at_point(
+        &self,
+        left: EulerState,
+        right: EulerState,
+        bounds: DomainBounds,
+        time: f64,
+        point_coord: f64,
+    ) -> DataPoint {
+        if point_coord < bounds.left || point_coord > bounds.right {
+            panic!("coord outside domain");
+        }
+
+        let solution = self.reconstruct(left, right, bounds, time);
+
+        // find next largest element
+        let next_elt_idx = solution
+            .iter()
+            .position(|&soln_elt| soln_elt.coord >= point_coord)
+            .unwrap();
+
+        let prev_elt = solution[next_elt_idx - 1];
+        let next_elt = solution[next_elt_idx];
+
+        // return element average
+        DataPoint::average(prev_elt, next_elt, point_coord)
+    }
+
     /// Extrapolate the solution and return a list of data points sorted by coordinate.
     fn extrapolate(&self, left: EulerState, right: EulerState, time: f64) -> Vec<DataPoint> {
         // quick and dirty plot polymorphism
@@ -94,29 +123,28 @@ impl EulerSolution {
 
                 // left wave data
                 let mut left_data = $left_wave.plot(&left, $contact, time);
-               // left_data.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
+                left_data.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
 
                 // get state at rightmost point -- will be the left_star's data
                 let left_state_star = *left_data.last().unwrap();
-                dbg!(&left_state_star);
+                // dbg!(&left_state_star);
                 res.extend(left_data);
 
                 // right wave data
                 let mut right_data = $right_wave.plot(&right, $contact, time);
-                dbg!(&right_data);
+                // dbg!(&right_data);
                 // get state at leftmost point -- the right_star's data
                 right_data.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
 
                 let right_state_star = right_data[0];
-                dbg!(&right_state_star);
+                // dbg!(&right_state_star);
 
                 res.extend(right_data);
-
 
                 // plot contact surface using left and right wave information
                 res.extend($contact.plot(time, left_state_star, right_state_star));
 
-                dbg!($contact.plot(time, left_state_star, right_state_star));
+                // dbg!($contact.plot(time, left_state_star, right_state_star));
 
                 res.sort_by(|a, b| a.coord.partial_cmp(&b.coord).unwrap());
                 res
@@ -277,8 +305,12 @@ impl Shock {
     /// Extrapolate a shock given an initial state.
     pub fn extrapolate(&self, state: &EulerState, time: f64) -> f64 {
         match state.side {
-            StateSide::Left => time * (state.velocity - self.mach_number * state.sound_speed()),
-            StateSide::Right => time * (state.velocity + self.mach_number * state.sound_speed()),
+            StateSide::Left => {
+                time * (state.velocity - self.mach_number.abs() * state.sound_speed())
+            }
+            StateSide::Right => {
+                time * (state.velocity + self.mach_number.abs() * state.sound_speed())
+            }
         }
     }
 

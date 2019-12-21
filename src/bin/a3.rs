@@ -1,5 +1,5 @@
 //!  Finite-Volume methods assignment 3
-//!  Max Orok, November 2019
+//!  Max Orok, November-December 2019
 //! -----------------------------------------------------------------------------
 //!   Approximate flux function comparison for the 1D Euler equations
 //! -----------------------------------------------------------------------------
