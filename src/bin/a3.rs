@@ -4,214 +4,204 @@
 //!   Approximate flux function comparison for the 1D Euler equations
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::riemann::waves::DataPoint;
-use rust_cfd::riemann::{solve_euler, DomainBounds, EulerState, StateSide};
+use rust_cfd::euler::{EulerSolution1d, FixedBoundary, PrimitiveResult, PrimitiveState};
 
-use rust_cfd::euler::{FluxType, EulerSolution1d};
-//
+// assignment 3
+use rust_cfd::fluxes::first_order;
+use rust_cfd::fluxes::FluxFunction;
+
+use rust_cfd::riemann::DomainBounds;
+
 // given as the same for both gases
 const GAMMA: f64 = 1.4;
 
-fn main() {
-
-    let flux_type = FluxType::Exact;
-    let num_cells = 100;
-
-    case_1(flux_type, num_cells);
-    case_2(flux_type, num_cells);
-    case_3(flux_type, num_cells);
-    case_4(flux_type, num_cells);
-
+struct SolnSpec {
+    pub t_final: f64,
+    pub bounds: DomainBounds,
+    pub num_cells: usize,
+    pub cfl: f64,
 }
 
-fn case_1(flux: FluxType, num_cells: u32) {
+fn main() {
+    let flux_fn = first_order::Exact {};
+    let flux_fn = first_order::Roe {};
 
-    let left_state = EulerState {
+    let num_cells = 100;
+    let cfl = 0.99;
+
+    println!("\ncase 1\n");
+    case_1(num_cells, cfl, flux_fn);
+    println!("\ncase 2\n");
+    case_2(num_cells, cfl, flux_fn);
+    println!("\ncase 3\n");
+    case_3(num_cells, cfl, flux_fn);
+    println!("\ncase 4\n");
+    case_4(num_cells, cfl, flux_fn);
+}
+
+fn case_1(num_cells: usize, cfl: f64, flux_fn: impl FluxFunction) {
+    let left_state = PrimitiveState {
         density: 2.281,
         velocity: 164.83,
         pressure: 201.17e3,
         gamma: GAMMA,
-        side: StateSide::Left,
     };
 
-    let right_state = EulerState {
+    let right_state = PrimitiveState {
         density: 1.408,
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
-        side: StateSide::Right,
     };
 
-    let soln = solve_euler(left_state, right_state);
-    dbg!(&soln);
+    let t_final = 12e-3;
 
-    let t_final = 12e-3; // s
-    let vec_out = soln.reconstruct(
-        left_state,
-        right_state,
-        DomainBounds {
-            left: 0.0,
-            interface: 2.0,
-            right: 10.0,
-        },
+    let bounds = DomainBounds {
+        left: 0.0,
+        interface: 2.0,
+        right: 10.0,
+    };
+
+    let soln_spec = SolnSpec {
         t_final,
-    );
+        bounds,
+        num_cells,
+        cfl,
+    };
 
-    println!("<< case 1 >>\n");
-    println!("coord\tdensity\tvelocity\tpressure");
-
-    for DataPoint {
-        coord,
-        density,
-        velocity,
-        pressure,
-    } in vec_out
-    {
-        println!(
-            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            coord, density, velocity, pressure
-        );
-    }
+    solve_euler_eqns(left_state, right_state, flux_fn, soln_spec);
 }
 
-fn case_2(flux: FluxType, num_cells: u32) {
-    let left_state = EulerState {
+fn case_2(num_cells: usize, cfl: f64, flux_fn: impl FluxFunction) {
+    let left_state = PrimitiveState {
         density: 1.045,
         velocity: 200.0,
         pressure: 300e3,
         gamma: GAMMA,
-        side: StateSide::Left,
     };
-    let right_state = EulerState {
+
+    let right_state = PrimitiveState {
         density: 3.483,
         velocity: 200.0,
         pressure: 300e3,
         gamma: GAMMA,
-        side: StateSide::Right,
     };
 
-    let soln = solve_euler(left_state, right_state);
-    dbg!(&soln);
+    let t_final = 25e-3;
 
-    let t_final = 25e-3; // s
-    let vec_out = soln.reconstruct(
-        left_state,
-        right_state,
-        DomainBounds {
-            left: 0.0,
-            interface: 2.0,
-            right: 10.0,
-        },
+    let bounds = DomainBounds {
+        left: 0.0,
+        interface: 2.0,
+        right: 10.0,
+    };
+
+    let soln_spec = SolnSpec {
         t_final,
-    );
+        bounds,
+        num_cells,
+        cfl,
+    };
 
-    println!("<< case 2 >>\n");
-    println!("coord\tdensity\tvelocity\tpressure");
-
-    for DataPoint {
-        coord,
-        density,
-        velocity,
-        pressure,
-    } in vec_out
-    {
-        println!(
-            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            coord, density, velocity, pressure
-        );
-    }
+    solve_euler_eqns(left_state, right_state, flux_fn, soln_spec);
 }
 
-fn case_3(flux: FluxType, num_cells: u32) {
-    let left_state = EulerState {
+fn case_3(num_cells: usize, cfl: f64, flux_fn: impl FluxFunction) {
+    let left_state = PrimitiveState {
         density: 1.598,
         velocity: -383.64,
         pressure: 91.88e3,
         gamma: GAMMA,
-        side: StateSide::Left,
     };
-    let right_state = EulerState {
+
+    let right_state = PrimitiveState {
         density: 2.787,
         velocity: -216.97,
         pressure: 200e3,
         gamma: GAMMA,
-        side: StateSide::Right,
     };
 
-    let soln = solve_euler(left_state, right_state);
-    dbg!(&soln);
-
     let t_final = 35e-3; // s
-    let vec_out = soln.reconstruct(
-        left_state,
-        right_state,
-        DomainBounds {
-            left: 0.0,
-            interface: 5.0,
-            right: 10.0,
-        },
-        t_final,
-    );
-    println!("<< case 3 >>\n");
-    println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint {
-        coord,
-        density,
-        velocity,
-        pressure,
-    } in vec_out
-    {
-        println!(
-            "{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            coord, density, velocity, pressure
-        );
-    }
+    let bounds = DomainBounds {
+        left: 0.0,
+        interface: 5.0,
+        right: 10.0,
+    };
+
+    let soln_spec = SolnSpec {
+        t_final,
+        bounds,
+        num_cells,
+        cfl,
+    };
+
+    solve_euler_eqns(left_state, right_state, flux_fn, soln_spec);
 }
 
-fn case_4(flux: FluxType, num_cells: u32) {
-    let left_state = EulerState {
+fn case_4(num_cells: usize, cfl: f64, flux_fn: impl FluxFunction) {
+    let left_state = PrimitiveState {
         density: 4.696,
         velocity: 0.0,
         pressure: 404.4e3,
         gamma: GAMMA,
-        side: StateSide::Left,
     };
-    let right_state = EulerState {
+
+    let right_state = PrimitiveState {
         density: 1.408,
         velocity: 0.0,
         pressure: 101.1e3,
         gamma: GAMMA,
-        side: StateSide::Right,
     };
 
-    let soln = solve_euler(left_state, right_state);
-    dbg!(&soln);
-
     let t_final = 7e-3; // s
-    let vec_out = soln.reconstruct(
+    let bounds = DomainBounds {
+        left: 0.0,
+        interface: 5.0,
+        right: 10.0,
+    };
+
+    let soln_spec = SolnSpec {
+        t_final,
+        bounds,
+        num_cells,
+        cfl,
+    };
+
+    solve_euler_eqns(left_state, right_state, flux_fn, soln_spec);
+}
+
+fn solve_euler_eqns(
+    left_state: PrimitiveState,
+    right_state: PrimitiveState,
+    flux_fn: impl FluxFunction,
+    soln_spec: SolnSpec,
+) {
+    let soln = EulerSolution1d::init(
         left_state,
         right_state,
-        DomainBounds {
-            left: 0.0,
-            interface: 5.0,
-            right: 10.0,
-        },
-        t_final,
+        soln_spec.bounds,
+        soln_spec.num_cells,
+        soln_spec.cfl,
     );
-    println!("<< case 4 >>\n");
+
+    let b_conds = FixedBoundary {
+        left_state,
+        right_state,
+    };
+
+    let res = soln.time_march(flux_fn, b_conds, soln_spec.t_final);
+
+    let res: Vec<_> = res
+        .into_iter()
+        .map(|cell| cell.to_primitive_result())
+        .collect();
+
     println!("coord\tdensity\tvelocity\tpressure");
 
-    for DataPoint {
-        coord,
-        density,
-        velocity,
-        pressure,
-    } in vec_out
-    {
+    for PrimitiveResult { state, coord, .. } in res {
         println!(
             "{:.4}\t{:.4}\t{:.4}\t{:.4}",
-            coord, density, velocity, pressure
+            coord, state.density, state.velocity, state.pressure
         );
     }
 }

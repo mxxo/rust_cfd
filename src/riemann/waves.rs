@@ -43,7 +43,7 @@ impl EulerSolution {
         for data_point in &mut soln {
             //let shift = (bounds.left - bounds.interface).abs().min((bounds.right - bounds.interface).abs());
             data_point.coord += bounds.interface; // bounds.interface;
-            // dbg!(data_point.coord);
+                                                  // dbg!(data_point.coord);
         }
 
         // only keep those points inside the bounds
@@ -182,6 +182,17 @@ pub struct DataPoint {
     pub velocity: f64,
     /// Pressure
     pub pressure: f64,
+}
+
+impl DataPoint {
+    pub fn average(this: Self, that: Self, coord: f64) -> Self {
+        Self {
+            coord,
+            density: (this.density + that.density) / 2.0,
+            velocity: (this.velocity + that.velocity) / 2.0,
+            pressure: (this.pressure + that.pressure) / 2.0,
+        }
+    }
 }
 
 /// A contact surface between two gases.

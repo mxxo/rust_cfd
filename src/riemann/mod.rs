@@ -6,7 +6,7 @@ use waves::{Contact, EulerSolution, Rarefaction, Shock};
 
 use std::collections::VecDeque;
 
-/// Euler equations state vector  
+/// Euler equations state vector
 #[derive(Debug, Clone, Copy)]
 pub struct EulerState {
     /// density in kg/m3
@@ -45,7 +45,7 @@ impl EulerState {
         (self.gamma * self.pressure / self.density).sqrt()
     }
 
-    /// Riemann invariant on the cell state.  
+    /// Riemann invariant on the cell state.
     pub fn big_gamma(&self) -> f64 {
         let sound_speed_term = self.sound_speed() * (2.0 / (self.gamma - 1.0));
 
@@ -181,6 +181,7 @@ mod tests {
             velocity: 164.83,
             pressure: 201.17e3,
             gamma: 1.4,
+            side: StateSide::Left,
         };
 
         assert_relative_eq!(left_state.sound_speed(), 351.3848, epsilon = 0.001);

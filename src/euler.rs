@@ -5,11 +5,34 @@
 // floating-point equality
 extern crate approx;
 
-use crate::riemann::DomainBounds;
-use std::ops::{Mul, Sub};
+use crate::fluxes::*;
+use crate::pde::Boundary1d;
+use crate::riemann::{waves::DataPoint, DomainBounds, EulerState, StateSide};
+
+use std::ops::{Add, Mul, Sub};
+
+pub trait EulerBoundary1d {
+    fn leftmost_flux(&self, soln: &EulerSolution1d) -> EulerFlux;
+    fn rightmost_flux(&self, soln: &EulerSolution1d) -> EulerFlux;
+}
+
+pub struct FixedBoundary {
+    pub left_state: PrimitiveState,
+    pub right_state: PrimitiveState,
+}
+
+impl EulerBoundary1d for FixedBoundary {
+    fn leftmost_flux(&self, _: &EulerSolution1d) -> EulerFlux {
+        EulerFlux::new(self.left_state)
+    }
+
+    fn rightmost_flux(&self, _: &EulerSolution1d) -> EulerFlux {
+        EulerFlux::new(self.right_state)
+    }
+}
 
 // the solution vector
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EulerSolution1d {
     // cell values
     cells: Vec<EulerCell1d>,
@@ -17,17 +40,104 @@ pub struct EulerSolution1d {
     domain: Vec<Boundary1d>,
     // the smallest cell width
     pub delta_x: f64,
+    pub cfl: f64,
 }
 
-
 impl EulerSolution1d {
+    pub fn init(
+        left: PrimitiveState,
+        right: PrimitiveState,
+        bounds: DomainBounds,
+        num_cells: usize,
+        cfl: f64,
+    ) -> Self {
+        // initialize the domain
+        let domain = domain_from_bounds(bounds, num_cells);
 
-    pub fn init(left: PrimitiveState, right: PrimitiveState, bounds: DomainBounds, num_cells: u32) -> Self {
-        unimplemented!();
-        // Self {
-        //
-        // }
+        // reserve space for the cell vector
+        let mut cells: Vec<EulerCell1d> = Vec::with_capacity(num_cells);
+
+        // initialize solution vector
+        for cell_idx in 0..num_cells {
+            let left_coord = domain[cell_idx].coord;
+            let right_coord = domain[cell_idx + 1].coord;
+
+            let center = (right_coord + left_coord) / 2.0;
+
+            if center <= bounds.interface {
+                cells.push(EulerCell1d::new(left, (left_coord, right_coord)));
+            } else {
+                cells.push(EulerCell1d::new(right, (left_coord, right_coord)));
+            }
+        }
+
+        let delta_x = cells
+            .iter()
+            .map(|cell| cell.right - cell.left) // extract cell widths
+            .fold(std::f64::INFINITY, |a, b| a.min(b)); // reduce to minimum value
+
+        Self {
+            cells,
+            domain,
+            delta_x,
+            cfl,
+        }
     }
+
+    // max (absolute) wave speed is either
+    //   |u - a| or |u + a|
+    // where u can be negative. we can simplify this
+    // by finding |u| + a since the sound speed is always positive
+    pub fn max_stable_timestep(&self) -> f64 {
+        self.cfl * self.delta_x / self.max_wave_speed()
+    }
+
+    pub fn max_wave_speed(&self) -> f64 {
+        self.cells
+            .iter()
+            .map(|cell| cell.velocity().abs() + cell.sound_speed())
+            .fold(0.0, |a, b| a.max(b)) // reduce to maximum
+    }
+
+    /// Time march this solution until a final time
+    pub fn time_march(
+        mut self,
+        flux_fn: impl FluxFunction,
+        boundary: impl EulerBoundary1d,
+        t_final: f64,
+    ) -> Vec<EulerCell1d> {
+        let mut t = 0.0;
+        while t < t_final {
+            // find
+            // skim off previous values
+            let old_soln = self.clone();
+            let time_step = if t + old_soln.max_stable_timestep() > t_final {
+                t_final - t
+            } else {
+                old_soln.max_stable_timestep()
+            };
+
+            // ignore boundaries for now :)), we don't really care about them
+            // for our four reference problems
+            for i in 1..old_soln.cells.len() - 1 {
+                let left_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
+                let right_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+
+                self.cells[i].advance(time_step, left_flux, right_flux);
+            }
+
+            t += time_step;
+        }
+
+        self.cells
+    }
+}
+
+fn domain_from_bounds(bounds: DomainBounds, num_cells: usize) -> Vec<Boundary1d> {
+    use crate::pde::make_domain;
+    make_domain(bounds.left, bounds.right, num_cells)
 }
 
 // ----------------------------------------------------------------------------
@@ -52,29 +162,53 @@ pub struct PrimitiveState {
     pub gamma: f64,
 }
 
+impl PrimitiveState {
+    pub fn from_DataPoint(val: DataPoint, gamma: f64) -> Self {
+        Self {
+            density: val.density,
+            velocity: val.velocity,
+            pressure: val.pressure,
+            gamma,
+        }
+    }
+
+    pub fn sound_speed(&self) -> f64 {
+        (self.gamma * self.pressure / self.density).sqrt()
+    }
+
+    pub fn to_flux(self) -> EulerFlux {
+        EulerFlux::new(self)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PrimitiveResult {
+    pub state: PrimitiveState,
+    pub coord: f64,
+    pub width: f64,
+}
+
 /// A discrete Euler 1D solution cell.
 #[derive(Debug, Clone, Copy)]
 pub struct EulerCell1d {
     pub density: f64,
     pub momentum: f64,
     pub energy: f64,
+    pub gamma: f64,
     pub left: f64,
     pub right: f64,
 }
 
 impl EulerCell1d {
-
     /// Advance this cell forward in time.
     pub fn advance(&mut self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) {
         // flux entering - flux leaving
         let net_flux = left_flux - right_flux;
-        let scaling_factor = timestep / (self.right - self.left);
-        let (new_dens, new_mom, new_energ) = net_flux * scaling_factor;
-        self.density = new_dens;
-        self.momentum = new_mom;
-        self.energy = new_energ;
-    }
+        let scaling_factor = timestep / self.width();
 
+        // update this cell
+        *self = *self + scaling_factor * net_flux;
+    }
 
     /// Make a new Euler state from primitive variables.
     pub fn new(state: PrimitiveState, bounds: (f64, f64)) -> Self {
@@ -83,16 +217,87 @@ impl EulerCell1d {
             density: state.density,
             momentum: state.density * state.velocity,
             energy: Self::energy(state),
+            gamma: state.gamma,
             left,
             right,
         }
     }
 
-    /// Energy expression for Euler.
-    fn energy(state: PrimitiveState) -> f64 {
-        state.pressure / (state.gamma - 1.0) + (state.density * state.velocity * state.velocity / 2.0)
+    // -- state equations
+    pub fn to_primitive_result(self) -> PrimitiveResult {
+        PrimitiveResult {
+            width: self.width(),
+            coord: self.center(),
+            state: self.to_primitive(),
+        }
     }
 
+    pub fn to_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.velocity(),
+            pressure: self.pressure(),
+            gamma: self.gamma,
+        }
+    }
+
+    pub fn to_flux(self) -> EulerFlux {
+        self.to_primitive().to_flux()
+    }
+
+    pub fn to_euler_state(self, side: StateSide) -> EulerState {
+        EulerState {
+            density: self.density,
+            velocity: self.velocity(),
+            pressure: self.pressure(),
+            gamma: self.gamma,
+            side,
+        }
+    }
+
+    pub fn velocity(&self) -> f64 {
+        self.momentum / self.density
+    }
+
+    pub fn pressure(&self) -> f64 {
+        (self.gamma - 1.0)
+            * (self.energy - (self.density * self.velocity() * self.velocity() / 2.0))
+    }
+
+    pub fn sound_speed(&self) -> f64 {
+        (self.gamma * self.pressure() / self.density).sqrt()
+    }
+
+    /// Energy expression for Euler.
+    fn energy(state: PrimitiveState) -> f64 {
+        state.pressure / (state.gamma - 1.0)
+            + (state.density * state.velocity * state.velocity / 2.0)
+    }
+
+    /// Cell center.
+    pub fn center(&self) -> f64 {
+        (self.right + self.left) / 2.0
+    }
+
+    /// Cell width.
+    pub fn width(&self) -> f64 {
+        self.right - self.left
+    }
+}
+
+impl Add<EulerFlux> for EulerCell1d {
+    type Output = Self;
+
+    fn add(self, rhs: EulerFlux) -> Self::Output {
+        Self {
+            density: self.density + rhs.density_flux,
+            momentum: self.momentum + rhs.momentum_flux,
+            energy: self.energy + rhs.energy_flux,
+            gamma: self.gamma,
+            left: self.left,
+            right: self.right,
+        }
+    }
 }
 
 /// An Euler flux set.
@@ -104,26 +309,26 @@ pub struct EulerFlux {
 }
 
 impl EulerFlux {
-
     /// Get a new flux vector based on the primitive state.
     pub fn new(state: PrimitiveState) -> Self {
         Self {
             density_flux: state.density * state.velocity,
-            momentum_flux: Self::get_momentum_flux(state),
-            energy_flux: Self::get_energy_flux(state),
+            momentum_flux: Self::momentum_flux(state),
+            energy_flux: Self::energy_flux(state),
         }
     }
 
     /// Calculate momentum flux based on primitive variables.
-    fn get_momentum_flux(state: PrimitiveState) -> f64 {
+    fn momentum_flux(state: PrimitiveState) -> f64 {
         state.density * state.velocity * state.velocity + state.pressure
     }
 
     /// Calculate energy flux based on primitive variables.
-    fn get_energy_flux(state: PrimitiveState) -> f64 {
-        state.velocity * (state.gamma * state.pressure / (state.gamma - 1.0) + (state.density * state.velocity * state.velocity / 2.0))
+    fn energy_flux(state: PrimitiveState) -> f64 {
+        state.velocity
+            * (state.gamma * state.pressure / (state.gamma - 1.0)
+                + (state.density * state.velocity * state.velocity / 2.0))
     }
-
 }
 
 // net flux
@@ -139,189 +344,57 @@ impl Sub for EulerFlux {
     }
 }
 
-impl Mul<f64> for EulerFlux {
-    type Output = (f64, f64, f64);
+impl Add<EulerFlux> for EulerFlux {
+    type Output = Self;
 
-    fn mul(self, rhs: f64) -> Self::Output {
-        (
-            self.density_flux * rhs,
-            self.momentum_flux * rhs,
-            self.energy_flux * rhs,
-        )
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            density_flux: self.density_flux + rhs.density_flux,
+            momentum_flux: self.momentum_flux + rhs.momentum_flux,
+            energy_flux: self.energy_flux + rhs.energy_flux,
+        }
     }
 }
 
-// impl Cell1d {
-//     // step this cell forward
-//     pub fn advance(&mut self, timestep: f64, net_flux: f64) {
-//         // some weirdness here since we're not using solution's uniform delta x?
-//         self.mass += timestep / (self.right - self.left) * net_flux;
-//     }
-// }
 
-// a boundary, aka cell interface
-#[derive(Debug)]
-struct Boundary1d {
-    pub coord: f64,
-    pub left_cell: usize,
-    pub right_cell: usize,
+
+
+// scalar multiplication
+impl Mul<EulerFlux> for f64 {
+    type Output = EulerFlux;
+
+    fn mul(self, rhs: EulerFlux) -> Self::Output {
+        EulerFlux {
+            density_flux: self * rhs.density_flux,
+            momentum_flux: self * rhs.momentum_flux,
+            energy_flux: self * rhs.energy_flux,
+        }
+    }
 }
 
+#[cfg(test)]
+mod tests {
 
+    use approx::*;
+    use super::*;
 
-//
-// // flux based on the left cell only
-// fn left_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
-//     wavespeed * past_values[boundary.left_cell]
-// }
-//
-// // flux based on the right cell only
-// fn right_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
-//     wavespeed * past_values[boundary.right_cell]
-// }
-//
-// // F(average)
-// fn average_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
-//     wavespeed * 0.5 * (past_values[boundary.left_cell] + past_values[boundary.right_cell])
-// }
-//
-// // F(Riemann solution)
-// fn simple_riemann_flux(boundary: &Boundary1d, past_values: &[f64], wavespeed: f64) -> f64 {
-//     // solution moving to the right, use information from the left cell
-//     if wavespeed > 0.0 {
-//         left_flux(boundary, past_values, wavespeed)
-//     }
-//     // solution moving to the left, use information from the right cell
-//     else {
-//         right_flux(boundary, past_values, wavespeed)
-//     }
-// }
-//
-// // ----------------------------------------------------------------------------
-// // Method implementations
-// // ----------------------------------------------------------------------------
-//
-// impl Solution1d {
-//     // constructor
-//     pub fn new(left: f64, right: f64, num_cells: usize) -> Self {
-//         // initialize the domain
-//         let domain = make_domain(left, right, num_cells);
-//
-//         // reserve space for the cell vector
-//         let mut cells = Vec::with_capacity(num_cells);
-//
-//         // initialize solution vector
-//         for cell_idx in 0..num_cells {
-//             cells.push(Cell1d {
-//                 value: 0.0,
-//                 left: domain[cell_idx].coord,
-//                 right: domain[cell_idx + 1].coord,
-//             });
-//         }
-//
-//         // find the minimum cell width
-//         let delta_x = cells
-//             .iter()
-//             .map(|cell| cell.right - cell.left) // extract cell widths
-//             .fold(std::f64::INFINITY, |a, b| a.min(b)); // reduce to minimum value
-//
-//         Solution1d {
-//             cells,
-//             domain,
-//             delta_x,
-//         }
-//     }
-//
-//     // initialize the solution vector with an expression
-//     pub fn init<F>(&mut self, ic_fn: F)
-//     where
-//         F: Fn(f64) -> f64,
-//     {
-//         // hardcode averaging scheme for simplicity
-//         let quad = Midpoint::init(1000);
-//         // average initial condition in each cell
-//         for mut cell in self.cells.iter_mut() {
-//             cell.value = quad.integrate(cell.left, cell.right, &ic_fn) / (cell.right - cell.left);
-//         }
-//     }
-//
-//     // fill the solution cell values from a slice
-//     pub fn fill(&mut self, values: &[f64]) {
-//         assert_eq!(values.len(), self.cells.len());
-//
-//         for (i, mut cell) in self.cells.iter_mut().enumerate() {
-//             cell.value = values[i];
-//         }
-//     }
-//
-//     // update the solution
-//     pub fn update(&mut self, flux_type: &FluxType, timestep: f64, wavespeed: f64) {
-//         // use enum to dispatch the different flux functions
-//         let flux_fn = match flux_type {
-//             FluxType::LeftCell => left_flux,
-//             FluxType::RightCell => right_flux,
-//             FluxType::CellAverage => average_flux,
-//             FluxType::Riemann => simple_riemann_flux,
-//         };
-//
-//         // skim off previous timestep's values
-//         // -- allocation seems to be factored out this method by optimizer
-//         let past_values: Vec<f64> = self.cells.iter().map(|cell| cell.value).collect();
-//
-//         // update cells using the flux function
-//         for (index, cell) in self.cells.iter_mut().enumerate() {
-//             let left_boundary = &self.domain[index];
-//             let right_boundary = &self.domain[index + 1];
-//
-//             let net_flux = flux_fn(left_boundary, &past_values, wavespeed)
-//                 - flux_fn(right_boundary, &past_values, wavespeed);
-//
-//             cell.advance(timestep, net_flux);
-//         }
-//     }
-//
-//     // export the solution in a simple format, akin to csv
-//     pub fn export(&self) -> (Vec<f64>, Vec<f64>) {
-//         let coords = self
-//             .cells
-//             .iter()
-//             .map(|cell| 0.5 * (cell.left + cell.right))
-//             .collect();
-//         let values = self.cells.iter().map(|cell| cell.value).collect();
-//         (coords, values)
-//     }
-// }
-//
-// // helper function for making a domain
-// //
-// // create `num_cell` equally sized pieces between left and right
-// fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
-//     // one more boundary than number of cells
-//     let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
-//     let mut boundaries = Vec::new();
-//
-//     for (idx, coord) in boundary_coords.enumerate() {
-//         // num_cells is for wraparound indexing of usize values
-//         let prev_idx = if idx == 0 { num_cells - 1 } else { idx - 1 };
-//         let next_idx = idx % num_cells;
-//         boundaries.push(Boundary1d {
-//             coord,
-//             left_cell: prev_idx,
-//             right_cell: next_idx,
-//         });
-//     }
-//
-//     boundaries
-// }
-//
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     pub fn domain_size() {
-//         let l = 100;
-//         let domain = make_domain(-10., 10., l);
-//         assert!(domain.len() == l + 1);
-//     }
-// }
+    #[test]
+    fn add_multiply_flux() {
+
+        let left_state = PrimitiveState {
+            density: 2.281,
+            velocity: 164.83,
+            pressure: 201.17e3,
+            gamma: 1.4,
+        };
+
+        let double_state = left_state.to_flux() + left_state.clone().to_flux();
+        assert_relative_eq!((2.0 * left_state.to_flux()).density_flux, double_state.density_flux, epsilon = 0.001);
+
+    }
+
+    #[test]
+    fn subtract_euler_state() {
+
+    }
+}

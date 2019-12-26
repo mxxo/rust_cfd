@@ -34,8 +34,8 @@ impl Cell1d {
 }
 
 // a boundary, aka cell interface
-#[derive(Debug)]
-struct Boundary1d {
+#[derive(Debug, Copy, Clone)]
+pub struct Boundary1d {
     pub coord: f64,
     pub left_cell: usize,
     pub right_cell: usize,
@@ -190,7 +190,7 @@ impl Solution1d {
 // helper function for making a domain
 //
 // create `num_cell` equally sized pieces between left and right
-fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
+pub fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
     // one more boundary than number of cells
     let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
     let mut boundaries = Vec::new();
