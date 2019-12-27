@@ -70,8 +70,8 @@ pub mod first_order {
             right: EulerCell1d,
             _time_step: f64,
         ) -> EulerFlux {
-            left.to_flux()
-                + right.to_flux()
+            0.5 * (left.to_flux()
+                    + right.to_flux())
                 + Roe::inner_flux(
                     Roe::average_state(left.to_primitive(), right.to_primitive()),
                     right.state_delta(left),
@@ -232,17 +232,9 @@ pub mod first_order {
         pub energy: f64,
     }
 
-    // Roe with entropy fix is implemented as a thin wrapper around Roe
+    // Roe with entropy fix takes advantage of the Roe functions
     #[derive(Debug, Clone, Copy)]
-    pub struct RoeEntropyFix(Roe);
-
-    impl Deref for RoeEntropyFix {
-        type Target = Roe;
-
-        fn deref(&self) -> &Roe {
-            &self.0
-        }
-    }
+    pub struct RoeEntropyFix;
 
     #[cfg(test)]
     mod tests {
