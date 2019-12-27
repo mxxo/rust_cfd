@@ -356,9 +356,6 @@ impl Add<EulerFlux> for EulerFlux {
     }
 }
 
-
-
-
 // scalar multiplication
 impl Mul<EulerFlux> for f64 {
     type Output = EulerFlux;
@@ -375,12 +372,11 @@ impl Mul<EulerFlux> for f64 {
 #[cfg(test)]
 mod tests {
 
-    use approx::*;
     use super::*;
+    use approx::*;
 
     #[test]
     fn add_multiply_flux() {
-
         let left_state = PrimitiveState {
             density: 2.281,
             velocity: 164.83,
@@ -389,12 +385,13 @@ mod tests {
         };
 
         let double_state = left_state.to_flux() + left_state.clone().to_flux();
-        assert_relative_eq!((2.0 * left_state.to_flux()).density_flux, double_state.density_flux, epsilon = 0.001);
-
+        assert_relative_eq!(
+            (2.0 * left_state.to_flux()).density_flux,
+            double_state.density_flux,
+            epsilon = 0.001
+        );
     }
 
     #[test]
-    fn subtract_euler_state() {
-
-    }
+    fn subtract_euler_state() {}
 }
