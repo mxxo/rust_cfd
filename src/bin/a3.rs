@@ -24,11 +24,11 @@ struct SolnSpec {
 
 fn main() {
 //    let flux_fn = first_order::Exact {};
-    let flux_fn = first_order::Roe {};
-//    let flux_fn = first_order::RoeEntropyFix {};
+//    let flux_fn = first_order::Roe {};
+    let flux_fn = first_order::RoeEntropyFix {};
 
     let num_cells = 1000;
-    let cfl = 0.99;
+    let cfl = 0.5;
 
     println!("\ncase 1\n");
     case_1(num_cells, cfl, flux_fn);

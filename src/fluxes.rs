@@ -1,8 +1,7 @@
-/// Euler flux functions for assignment 3
-
-/// The concept of a flux is something that takes two cells and finds the flux
-/// at the boundary.
-use std::ops::Deref;
+//! Euler flux functions for assignment 3
+//!
+//! The concept of a flux is something that takes two cells and finds the flux
+//! at the boundary.
 
 use crate::euler::{EulerCell1d, EulerFlux, PrimitiveState};
 use crate::riemann::{solve_euler, DomainBounds, StateSide};
@@ -70,11 +69,14 @@ pub mod first_order {
             right: EulerCell1d,
             _time_step: f64,
         ) -> EulerFlux {
+           let roe_avg = Roe::average_state(left.to_primitive(), right.to_primitive());
+
             0.5 * (left.to_flux()
                     + right.to_flux())
                 + Roe::inner_flux(
-                    Roe::average_state(left.to_primitive(), right.to_primitive()),
+                    roe_avg,
                     right.state_delta(left),
+                    Roe::eigenvalues(roe_avg),
                 )
         }
     }
@@ -83,6 +85,15 @@ pub mod first_order {
         pub fn enthalpy(&self) -> f64 {
             self.gamma * self.pressure / (self.density * (self.gamma - 1.0))
                 + (self.velocity * self.velocity / 2.0)
+        }
+
+        /// Returns (left, center, right) state eigenvalues.
+        pub fn eigenvalues(&self) -> (f64, f64, f64) {
+            (
+                self.velocity - self.sound_speed(),
+                self.velocity,
+                self.velocity + self.sound_speed(),
+            )
         }
     }
 
@@ -130,15 +141,10 @@ pub mod first_order {
         }
 
         /// Inner flux is -0.5 * sum(a_i, | /\_i |, K_i)
-        pub(crate) fn inner_flux(roe_avg: PrimitiveState, u_delta: EulerCellDelta) -> EulerFlux {
+        pub(crate) fn inner_flux(roe_avg: PrimitiveState, u_delta: EulerCellDelta, abs_eigenvalues: (f64, f64, f64)) -> EulerFlux {
             // left: EulerCell1d, right: EulerCell1d)
             // let roe_avg = Roe::average_state(left.to_primitive(), right.to_primitive());
 
-            let abs_eigenvalues = (
-                f64::abs(roe_avg.velocity - roe_avg.sound_speed()),
-                f64::abs(roe_avg.velocity),
-                f64::abs(roe_avg.velocity + roe_avg.sound_speed()),
-            );
 
 //             dbg!(abs_eigenvalues);
 //
@@ -163,6 +169,15 @@ pub mod first_order {
             // unimplemented!();
         }
 
+        // associated eigenvalues
+        pub fn eigenvalues(roe_avg: PrimitiveState) -> (f64, f64, f64) {
+            let e_vals = roe_avg.eigenvalues();
+            (
+                f64::abs(e_vals.0),
+                f64::abs(e_vals.1),
+                f64::abs(e_vals.2),
+            )
+        }
         // -- right eigenvectors (K)
         // we represent them as EulerFluxes
 
@@ -236,6 +251,66 @@ pub mod first_order {
     #[derive(Debug, Clone, Copy)]
     pub struct RoeEntropyFix;
 
+    impl FluxFunction for RoeEntropyFix {
+        fn calculate_flux(
+            &self,
+            left: EulerCell1d,
+            right: EulerCell1d,
+            _time_step: f64,
+        ) -> EulerFlux {
+
+           let roe_avg = Roe::average_state(left.to_primitive(), right.to_primitive());
+
+            0.5 * (left.to_flux()
+                    + right.to_flux())
+                + Roe::inner_flux(
+                    roe_avg,
+                    right.state_delta(left),
+                    RoeEntropyFix::eigenvalues(left.to_primitive(), right.to_primitive()),
+                )
+        }
+    }
+
+    impl RoeEntropyFix {
+        pub fn eigenvalues(left_state: PrimitiveState, right_state: PrimitiveState) -> (f64, f64, f64) {
+            let left_eigvals = left_state.eigenvalues();
+            let right_eigvals = right_state.eigenvalues();
+
+            let abs_avg_eigvals = Roe::eigenvalues(Roe::average_state(left_state, right_state));
+
+            (
+                // could be a lot nicer with mapping over array, slice etc
+                Self::harten_entropy_fix(left_eigvals.0, right_eigvals.0, abs_avg_eigvals.0),
+                Self::harten_entropy_fix(left_eigvals.1, right_eigvals.1, abs_avg_eigvals.1),
+                Self::harten_entropy_fix(left_eigvals.2, right_eigvals.2, abs_avg_eigvals.2),
+            )
+        }
+
+        pub (crate) fn harten_entropy_fix(l_val: f64, r_val: f64, abs_avg_val: f64) -> f64 {
+            // shock -- no problem, return roe_avg
+            let scaling_factor = Self::eig_scaling_factor(l_val, r_val);
+
+            // possible issue with div 0 -- check that scaling_factor isn't too small
+            if l_val > r_val || scaling_factor < 1e-6 {
+                return abs_avg_val
+            }
+
+            if abs_avg_val > scaling_factor / 2.0 {
+                abs_avg_val
+            } else {
+                abs_avg_val * abs_avg_val / scaling_factor + scaling_factor / 4.0
+            }
+
+        }
+
+        // little delta scaling factor
+        #[inline]
+        pub (crate) fn eig_scaling_factor(l_val: f64, r_val: f64) -> f64 {
+            f64::max(0.0, 4.0 * (r_val - l_val))
+        }
+    }
+
+
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -293,7 +368,8 @@ pub mod first_order {
                 },
                 (1.0, 2.0));
 
-            let roe_avg_flux = Roe::inner_flux(Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive()), right_cell.state_delta(left_cell));
+            let roe_avg = Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive());
+            let roe_avg_flux = Roe::inner_flux(roe_avg, right_cell.state_delta(left_cell), Roe::eigenvalues(roe_avg));
 
             // expect everything moving to the right
             assert!(roe_avg_flux.density_flux > 0.0);
@@ -323,9 +399,9 @@ pub mod first_order {
                 (0.0, 1.0)
             );
 
+            let roe_avg = Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive());
+            let roe_avg_flux = Roe::inner_flux(roe_avg, right_cell.state_delta(left_cell), Roe::eigenvalues(roe_avg));
 
-            // test reverse
-            let roe_avg_flux = Roe::inner_flux(Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive()), right_cell.state_delta(left_cell));
             assert!(roe_avg_flux.density_flux < 0.0);
             // not sure about this one
             assert!(roe_avg_flux.momentum_flux > 0.0);
@@ -416,7 +492,7 @@ pub mod first_order {
                 energy_flux: 0.0,
             };
 
-            let roe_avg_flux = Roe::inner_flux(left_state, zero_delta);
+            let roe_avg_flux = Roe::inner_flux(left_state, zero_delta, Roe::eigenvalues(left_state));
 
             assert_relative_eq!(roe_avg_flux.density_flux, zero_flux.density_flux);
             assert_relative_eq!(roe_avg_flux.momentum_flux, zero_flux.momentum_flux);
