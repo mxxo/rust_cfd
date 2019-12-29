@@ -9,9 +9,9 @@ Build all assignments using `cargo build --release`
 
 Run assignments one-by-one using 
 ```shell
-cargo run <assignment_name> --release
+cargo run --bin <assignment_name> --release
 # e.g. for assignment 1, 
-cargo run a1 --release
+cargo run --bin a1 --release
 ```
 
 Run the tests with `cargo test`
