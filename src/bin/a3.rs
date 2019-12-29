@@ -4,10 +4,10 @@
 //!   Approximate flux function comparison for the 1D Euler equations
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::euler::{EulerSolution1d, FixedBoundary, PrimitiveResult, PrimitiveState};
+use rust_cfd::euler::{EulerSolution1d, PrimitiveResult, PrimitiveState};
 
 // assignment 3
-use rust_cfd::fluxes::first_order;
+use rust_cfd::fluxes;
 use rust_cfd::fluxes::FluxFunction;
 
 use rust_cfd::riemann::DomainBounds;
@@ -23,10 +23,11 @@ struct SolnSpec {
 }
 
 fn main() {
-//    let flux_fn = first_order::Exact {};
-//    let flux_fn = first_order::Roe {};
-//    let flux_fn = first_order::RoeEntropyFix {};
-    let flux_fn = first_order::Hlle {};
+
+    let flux_fn = fluxes::Exact {};
+//     let flux_fn = fluxes::Roe {};
+//     let flux_fn = fluxes::RoeEntropyFix {};
+//     let flux_fn = fluxes::Hlle {};
 
     let num_cells = 1000;
     let cfl = 0.99;
@@ -186,12 +187,12 @@ fn solve_euler_eqns(
         soln_spec.cfl,
     );
 
-    let b_conds = FixedBoundary {
-        left_state,
-        right_state,
-    };
+    // let b_conds = FixedBoundary {
+    //     left_state,
+    //     right_state,
+    // };
 
-    let res = soln.time_march(flux_fn, b_conds, soln_spec.t_final);
+    let res = soln.first_order_time_march(flux_fn, soln_spec.t_final);
 
     let res: Vec<_> = res
         .into_iter()

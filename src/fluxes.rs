@@ -10,8 +10,6 @@ pub trait FluxFunction {
     fn calculate_flux(&self, left: EulerCell1d, right: EulerCell1d, time_step: f64) -> EulerFlux;
 }
 
-use super::*;
-
 #[derive(Debug, Clone, Copy)]
 /// The flux using an exact solution to the Euler equations.
 pub struct Exact;
@@ -47,7 +45,7 @@ impl FluxFunction for Exact {
         );
 
         // todo fix for different gammas
-        EulerFlux::new(PrimitiveState::from_DataPoint(point_soln, left_state.gamma))
+        EulerFlux::new(PrimitiveState::from_data_point(point_soln, left_state.gamma))
     }
 }
 

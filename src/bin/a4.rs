@@ -5,7 +5,7 @@
 //! Predictor-corrector time marching and slope limiters
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::euler::{EulerSolution1d, FixedBoundary, PrimitiveResult, PrimitiveState};
+use rust_cfd::euler::{EulerSolution1d, PrimitiveResult, PrimitiveState};
 
 // assignment 4
 use rust_cfd::fluxes;
@@ -188,12 +188,12 @@ fn solve_euler_eqns(
         soln_spec.cfl,
     );
 
-    let b_conds = FixedBoundary {
-        left_state,
-        right_state,
-    };
+    // let b_conds = FixedBoundary {
+    //     left_state,
+    //     right_state,
+    // };
 
-    let res = soln.time_march(flux_fn, b_conds, soln_spec.t_final);
+    let res = soln.first_order_time_march(flux_fn, soln_spec.t_final);
 
     let res: Vec<_> = res
         .into_iter()

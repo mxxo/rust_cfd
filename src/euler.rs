@@ -99,11 +99,44 @@ impl EulerSolution1d {
             .fold(0.0, |a, b| a.max(b)) // reduce to maximum
     }
 
-    /// Time march this solution until a final time
-    pub fn time_march(
+    /// Time march this solution until a final time.
+    pub fn first_order_time_march(
         mut self,
         flux_fn: impl FluxFunction,
-        boundary: impl EulerBoundary1d,
+        t_final: f64,
+    ) -> Vec<EulerCell1d> {
+        let mut t = 0.0;
+        while t < t_final {
+            // find
+            // skim off previous values
+            let old_soln = self.clone();
+            let time_step = if t + old_soln.max_stable_timestep() > t_final {
+                t_final - t
+            } else {
+                old_soln.max_stable_timestep()
+            };
+
+            // ignore boundaries for now :)), we don't really care about them
+            // for our four reference problems
+            for i in 1..old_soln.cells.len() - 1 {
+                let left_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
+                let right_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+
+                self.cells[i].advance(time_step, left_flux, right_flux);
+            }
+
+            t += time_step;
+        }
+
+        self.cells
+    }
+
+    /// Second order time-march with predictor-corrector and linear reconstruction.
+    pub fn second_order_time_march(
+        mut self,
+        flux_fn: impl FluxFunction,
         t_final: f64,
     ) -> Vec<EulerCell1d> {
         let mut t = 0.0;
@@ -163,7 +196,7 @@ pub struct PrimitiveState {
 }
 
 impl PrimitiveState {
-    pub fn from_DataPoint(val: DataPoint, gamma: f64) -> Self {
+    pub fn from_data_point(val: DataPoint, gamma: f64) -> Self {
         Self {
             density: val.density,
             velocity: val.velocity,
@@ -202,12 +235,16 @@ pub struct EulerCell1d {
 impl EulerCell1d {
     /// Advance this cell forward in time.
     pub fn advance(&mut self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) {
-        // flux entering - flux leaving
+        // update this cell
+        *self = self.next_cell(timestep, left_flux, right_flux) // + scaling_factor * net_flux;
+    }
+
+    /// Get a new cell based on a cell update.
+    pub fn next_cell(self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) -> EulerCell1d {
         let net_flux = left_flux - right_flux;
         let scaling_factor = timestep / self.width();
 
-        // update this cell
-        *self = *self + scaling_factor * net_flux;
+        self + scaling_factor * net_flux
     }
 
     /// Make a new Euler state from primitive variables.
