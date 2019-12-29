@@ -137,16 +137,15 @@ impl Roe {
         // left: EulerCell1d, right: EulerCell1d)
         // let roe_avg = Roe::average_state(left.to_primitive(), right.to_primitive());
 
-
-           dbg!(abs_eigenvalues);
-
-           dbg!(Roe::first_wave_strength(roe_avg, u_delta));
-           dbg!(Roe::first_eigvec(roe_avg));
-           dbg!(Roe::second_wave_strength(roe_avg, u_delta));
-           dbg!(Roe::second_eigvec(roe_avg));
-           dbg!(Roe::third_wave_strength(roe_avg, u_delta));
-           dbg!(Roe::third_eigvec(roe_avg));
-
+//            dbg!(abs_eigenvalues);
+//
+//            dbg!(Roe::first_wave_strength(roe_avg, u_delta));
+//            dbg!(Roe::first_eigvec(roe_avg));
+//            dbg!(Roe::second_wave_strength(roe_avg, u_delta));
+//            dbg!(Roe::second_eigvec(roe_avg));
+//            dbg!(Roe::third_wave_strength(roe_avg, u_delta));
+//            dbg!(Roe::third_eigvec(roe_avg));
+//
         // find wave strengths
         -0.5 * (abs_eigenvalues.0
             * Roe::first_wave_strength(roe_avg, u_delta)
