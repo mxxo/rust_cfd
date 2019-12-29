@@ -55,8 +55,6 @@ pub mod first_order {
         }
     }
 
-    #[derive(Debug, Clone, Copy)]
-    pub struct Hlle;
 
     #[derive(Debug, Clone, Copy)]
     pub struct Roe;
@@ -287,10 +285,10 @@ pub mod first_order {
         }
 
         pub (crate) fn harten_entropy_fix(l_val: f64, r_val: f64, abs_avg_val: f64) -> f64 {
-            // shock -- no problem, return roe_avg
             let scaling_factor = Self::eig_scaling_factor(l_val, r_val);
 
             // possible issue with div 0 -- check that scaling_factor isn't too small
+            // or shock -- no problem, return roe_avg
             if l_val > r_val || scaling_factor < 1e-6 {
                 return abs_avg_val
             }
@@ -310,6 +308,71 @@ pub mod first_order {
         }
     }
 
+    #[derive(Debug, Clone, Copy)]
+    pub struct Hlle;
+
+    impl FluxFunction for Hlle {
+        fn calculate_flux(
+            &self,
+            left: EulerCell1d,
+            right: EulerCell1d,
+            _time_step: f64,
+        ) -> EulerFlux {
+
+            let (left_state, right_state) = (left.to_primitive(), right.to_primitive());
+            let roe_avg = Roe::average_state(left_state, right_state);
+
+            let l_minus = Hlle::left_wavespeed(left_state, roe_avg);
+            let l_plus = Hlle::right_wavespeed(right_state, roe_avg);
+
+            // dbg!(l_plus);
+            // dbg!(l_minus);
+
+            if l_minus > 0.0 {
+                left.to_flux()
+            } else if l_plus < 0.0 {
+                right.to_flux()
+            } else {
+                Hlle::middle_flux(left, right, l_minus, l_plus)
+            }
+        }
+    }
+
+    impl Hlle {
+
+        #[inline]
+        pub (crate) fn left_wavespeed(left: PrimitiveState, roe_avg: PrimitiveState) -> f64 {
+            f64::min(
+                left.velocity - left.sound_speed(),
+                roe_avg.velocity - roe_avg.sound_speed()
+            )
+        }
+
+        #[inline]
+        pub (crate) fn right_wavespeed(right: PrimitiveState, roe_avg: PrimitiveState) -> f64 {
+            f64::max(
+                right.velocity + right.sound_speed(),
+                roe_avg.velocity + roe_avg.sound_speed()
+            )
+        }
+
+        /// The HLLE middle flux term.
+        #[inline]
+        pub (crate) fn middle_flux(left: EulerCell1d, right: EulerCell1d, l_minus: f64, l_plus: f64)-> EulerFlux {
+
+            let lr_term = 1.0 / (l_plus - l_minus) * (l_plus * left.to_flux() - l_minus * right.to_flux());
+
+            let u_delta = right.state_delta(left);
+            let delta_term = (l_plus * l_minus) / (l_plus - l_minus)
+                * EulerFlux { /* dummy EulerFlux from cell deltas */
+                    density_flux: u_delta.density,
+                    momentum_flux: u_delta.momentum,
+                    energy_flux: u_delta.energy,
+                };
+
+            lr_term + delta_term
+        }
+    }
 
     #[cfg(test)]
     mod tests {
