@@ -141,24 +141,56 @@ impl EulerSolution1d {
     ) -> Vec<EulerCell1d> {
         let mut t = 0.0;
         while t < t_final {
-            // find
+
             // skim off previous values
             let old_soln = self.clone();
+
             let time_step = if t + old_soln.max_stable_timestep() > t_final {
                 t_final - t
             } else {
                 old_soln.max_stable_timestep()
             };
 
-            // ignore boundaries for now :)), we don't really care about them
-            // for our four reference problems
-            for i in 1..old_soln.cells.len() - 1 {
+            // -- prediction
+
+            // fill a vector with all the guess values
+            let mut guesses = old_soln.cells.clone();
+
+            // don't update first and last cells for simplicity
+            for i in 1..guesses.len()-1 {
                 let left_flux =
                     flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
                 let right_flux =
                     flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
 
-                self.cells[i].advance(time_step, left_flux, right_flux);
+                guesses[i] = old_soln.cells[i].cell_guess(time_step, left_flux, right_flux);
+            }
+
+            // dbg!(guesses);
+
+            // -- correction
+
+            // use guesses to adjust cell updates
+            for i in 1..old_soln.cells.len()-1 {
+
+                // old values
+                let left_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
+                let right_flux =
+                    flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+
+                // guess values
+                let left_flux_guess =
+                    flux_fn.calculate_flux(guesses[i - 1], guesses[i], time_step);
+                let right_flux_guess =
+                    flux_fn.calculate_flux(guesses[i], guesses[i + 1], time_step);
+
+                // update cell with guess-averaged values
+                // -- combine left, right fluxes
+                let left_avg = 0.5 * (left_flux + left_flux_guess);
+                let right_avg = 0.5 * (right_flux + right_flux_guess);
+
+                self.cells[i].advance(time_step, left_avg, right_avg);
             }
 
             t += time_step;
@@ -236,11 +268,11 @@ impl EulerCell1d {
     /// Advance this cell forward in time.
     pub fn advance(&mut self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) {
         // update this cell
-        *self = self.next_cell(timestep, left_flux, right_flux) // + scaling_factor * net_flux;
+        *self = self.cell_guess(timestep, left_flux, right_flux) // + scaling_factor * net_flux;
     }
 
-    /// Get a new cell based on a cell update.
-    pub fn next_cell(self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) -> EulerCell1d {
+    /// Get a copy of an updated cell.
+    pub fn cell_guess(self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) -> EulerCell1d {
         let net_flux = left_flux - right_flux;
         let scaling_factor = timestep / self.width();
 

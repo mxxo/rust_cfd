@@ -25,6 +25,8 @@ struct SolnSpec {
 
 fn main() {
 
+    // uncomment to try different flux functions
+
     let flux_fn = fluxes::Exact {};
 //     let flux_fn = fluxes::Roe {};
 //     let flux_fn = fluxes::RoeEntropyFix {};
@@ -188,12 +190,7 @@ fn solve_euler_eqns(
         soln_spec.cfl,
     );
 
-    // let b_conds = FixedBoundary {
-    //     left_state,
-    //     right_state,
-    // };
-
-    let res = soln.first_order_time_march(flux_fn, soln_spec.t_final);
+    let res = soln.second_order_time_march(flux_fn, soln_spec.t_final);
 
     let res: Vec<_> = res
         .into_iter()
