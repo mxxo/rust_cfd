@@ -4,6 +4,7 @@
 * **a1** --- Godunov's method for linear PDEs (1D) 
 * **a2** --- Exact Riemann solver for the Euler equations (1D) 
 * **a3** --- Approximate Riemann solvers (1D) 
+* **a4** --- Second-order methods with linear reconstruction and predictor-corrector time marching.   
 
 Build all assignments using `cargo build --release`
 

@@ -75,28 +75,28 @@ impl Mul<EulerLimit> for f64 {
 }
 
 impl VanAlbada {
-
     /// Get the series of slope limiters for a solution.
-    pub fn soln_limiters(soln: &Vec::<EulerCell1d>) -> Vec::<EulerLimit> {
-
+    pub fn soln_limiters(soln: &Vec<EulerCell1d>) -> Vec<EulerLimit> {
         let mut limiters: Vec<EulerLimit> = Vec::with_capacity(soln.len());
 
         // first cell take a copy as left cell
         limiters.push(Self::state_limiter(soln[0], (soln[0], soln[1])));
 
-        for i in 1..soln.len()-1 {
-            limiters.push(Self::state_limiter(soln[i], (soln[i-1], soln[i+1])));
+        for i in 1..soln.len() - 1 {
+            limiters.push(Self::state_limiter(soln[i], (soln[i - 1], soln[i + 1])));
         }
 
         // last cell take a copy as right cell
-        let last_idx = soln.len()-1;
-        limiters.push(Self::state_limiter(soln[last_idx], (soln[last_idx-1], soln[last_idx])));
+        let last_idx = soln.len() - 1;
+        limiters.push(Self::state_limiter(
+            soln[last_idx],
+            (soln[last_idx - 1], soln[last_idx]),
+        ));
 
         limiters
     }
 
     fn state_limiter(middle: EulerCell1d, (left, right): (EulerCell1d, EulerCell1d)) -> EulerLimit {
-
         let backward_diff = 1.0 / middle.width() * (middle - left);
         let forward_diff = 1.0 / middle.width() * (right - middle);
 
@@ -105,27 +105,27 @@ impl VanAlbada {
             momentum_limit: Self::limit(backward_diff.momentum, forward_diff.momentum),
             energy_limit: Self::limit(backward_diff.energy, forward_diff.energy),
         }
-
     }
 
     #[inline(always)]
     fn limit(backward_difference: f64, forward_difference: f64) -> f64 {
-       (backward_difference * forward_difference) * (backward_difference + forward_difference)
-           / (backward_difference * backward_difference + forward_difference * forward_difference + 1e-8)
+        (backward_difference * forward_difference) * (backward_difference + forward_difference)
+            / (backward_difference * backward_difference
+                + forward_difference * forward_difference
+                + 1e-8)
     }
-
 }
 
 #[cfg(test)]
 
 mod tests {
-    extern crate rand;
     extern crate approx;
+    extern crate rand;
 
-    use approx::*;
-    use rand::Rng;
     use super::*;
     use crate::euler::PrimitiveState;
+    use approx::*;
+    use rand::Rng;
 
     #[test]
     fn reconstruct_bounds() {
@@ -273,7 +273,6 @@ mod tests {
 
     #[test]
     fn flat_limiters() {
-
         let mut rng = rand::thread_rng();
 
         let limit = VanAlbada::limit(0.0, 1.0);
@@ -334,7 +333,6 @@ mod tests {
             assert_relative_eq!(limiter.momentum_limit, 0.0);
             assert_relative_eq!(limiter.energy_limit, 0.0);
         }
-
     }
 
     #[test]
@@ -383,7 +381,6 @@ mod tests {
             assert_relative_eq!(limiter.momentum_limit, 0.0);
             assert_relative_eq!(limiter.energy_limit, 0.0);
         }
-
     }
 
     #[test]
@@ -434,7 +431,5 @@ mod tests {
             assert!(limiter.momentum_limit > 10.0);
             assert!(limiter.energy_limit > 10.0);
         }
-
     }
-
 }

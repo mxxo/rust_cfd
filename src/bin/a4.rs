@@ -26,10 +26,10 @@ struct SolnSpec {
 fn main() {
     // uncomment to try different flux functions
 
-    let flux_fn = fluxes::Exact {};
-    //     let flux_fn = fluxes::Roe {};
-    //     let flux_fn = fluxes::RoeEntropyFix {};
-    //     let flux_fn = fluxes::Hlle {};
+    // let flux_fn = fluxes::Exact {};
+    // let flux_fn = fluxes::Roe {};
+    // let flux_fn = fluxes::RoeEntropyFix {};
+    let flux_fn = fluxes::Hlle {};
 
     let num_cells = 100;
     let cfl = 0.99;

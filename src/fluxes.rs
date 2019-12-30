@@ -378,11 +378,8 @@ mod tests {
         );
 
         let roe_avg = Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive());
-        let roe_avg_flux = Roe::inner_flux(
-            roe_avg,
-            right_cell - left_cell,
-            Roe::eigenvalues(roe_avg),
-        );
+        let roe_avg_flux =
+            Roe::inner_flux(roe_avg, right_cell - left_cell, Roe::eigenvalues(roe_avg));
 
         // expect everything moving to the right
         assert!(roe_avg_flux.density_flux > 0.0);
@@ -413,11 +410,8 @@ mod tests {
         );
 
         let roe_avg = Roe::average_state(left_cell.to_primitive(), right_cell.to_primitive());
-        let roe_avg_flux = Roe::inner_flux(
-            roe_avg,
-            right_cell - left_cell,
-            Roe::eigenvalues(roe_avg),
-        );
+        let roe_avg_flux =
+            Roe::inner_flux(roe_avg, right_cell - left_cell, Roe::eigenvalues(roe_avg));
 
         assert!(roe_avg_flux.density_flux < 0.0);
         // not sure about this one
