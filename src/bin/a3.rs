@@ -23,11 +23,10 @@ struct SolnSpec {
 }
 
 fn main() {
-
     let flux_fn = fluxes::Exact {};
-//     let flux_fn = fluxes::Roe {};
-//     let flux_fn = fluxes::RoeEntropyFix {};
-//     let flux_fn = fluxes::Hlle {};
+    //     let flux_fn = fluxes::Roe {};
+    //     let flux_fn = fluxes::RoeEntropyFix {};
+    //     let flux_fn = fluxes::Hlle {};
 
     let num_cells = 1000;
     let cfl = 0.99;

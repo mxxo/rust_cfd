@@ -6,6 +6,7 @@
 extern crate approx;
 
 use crate::fluxes::*;
+use crate::limiters::VanAlbada;
 use crate::pde::Boundary1d;
 use crate::riemann::{waves::DataPoint, DomainBounds, EulerState, StateSide};
 
@@ -141,7 +142,6 @@ impl EulerSolution1d {
     ) -> Vec<EulerCell1d> {
         let mut t = 0.0;
         while t < t_final {
-
             // skim off previous values
             let old_soln = self.clone();
 
@@ -157,7 +157,7 @@ impl EulerSolution1d {
             let mut guesses = old_soln.cells.clone();
 
             // don't update first and last cells for simplicity
-            for i in 1..guesses.len()-1 {
+            for i in 1..guesses.len() - 1 {
                 let left_flux =
                     flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
                 let right_flux =
@@ -171,8 +171,7 @@ impl EulerSolution1d {
             // -- correction
 
             // use guesses to adjust cell updates
-            for i in 1..old_soln.cells.len()-1 {
-
+            for i in 1..old_soln.cells.len() - 1 {
                 // old values
                 let left_flux =
                     flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
@@ -180,8 +179,7 @@ impl EulerSolution1d {
                     flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
 
                 // guess values
-                let left_flux_guess =
-                    flux_fn.calculate_flux(guesses[i - 1], guesses[i], time_step);
+                let left_flux_guess = flux_fn.calculate_flux(guesses[i - 1], guesses[i], time_step);
                 let right_flux_guess =
                     flux_fn.calculate_flux(guesses[i], guesses[i + 1], time_step);
 
@@ -272,7 +270,12 @@ impl EulerCell1d {
     }
 
     /// Get a copy of an updated cell.
-    pub fn cell_guess(self, timestep: f64, left_flux: EulerFlux, right_flux: EulerFlux) -> EulerCell1d {
+    pub fn cell_guess(
+        self,
+        timestep: f64,
+        left_flux: EulerFlux,
+        right_flux: EulerFlux,
+    ) -> EulerCell1d {
         let net_flux = left_flux - right_flux;
         let scaling_factor = timestep / self.width();
 
@@ -461,6 +464,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn subtract_euler_state() {}
+    // #[test]
+    // fn subtract_euler_state() {}
 }
