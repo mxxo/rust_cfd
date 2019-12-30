@@ -9,6 +9,7 @@ name = "rust_cfd"
 path = "src/lib.rs"
 
 [dependencies]
+rand = "0.7"
 
 # our homebrew midpoint rule fork of gauss-quad
 gauss-quad = { git = "https://github.com/mxxo/gauss-quad", branch = "midpoint-rule" }
