@@ -153,18 +153,32 @@ impl EulerSolution1d {
 
             // -- prediction
 
+            // find old solution slope limits
+            let old_limits = VanAlbada::soln_limiters(&old_soln.cells);
+
             // fill a vector with all the guess values
-            let mut guesses = old_soln.cells.clone();
+            let guesses = {
+                let mut guesses = old_soln.cells.clone();
 
-            // don't update first and last cells for simplicity
-            for i in 1..guesses.len() - 1 {
-                let left_flux =
-                    flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
-                let right_flux =
-                    flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+                // don't update first and last cells for simplicity
+                for i in 1..guesses.len() - 1 {
+                    let left_flux =
+                        flux_fn.calculate_flux(old_soln.cells[i - 1].reconstruct(old_limits[i-1]),
+                                               old_soln.cells[i].reconstruct(-1.0 * old_limits[i]),
+                                               time_step);
+                    let right_flux =
+                        flux_fn.calculate_flux(old_soln.cells[i].reconstruct(old_limits[i]),
+                                               old_soln.cells[i + 1].reconstruct(-1.0 * old_limits[i+1]),
+                                               time_step);
 
-                guesses[i] = old_soln.cells[i].cell_guess(time_step, left_flux, right_flux);
-            }
+                    guesses[i] = old_soln.cells[i].cell_guess(time_step, left_flux, right_flux);
+                }
+
+                guesses
+            };
+
+            // find predicted solution limits
+            let guess_limits = VanAlbada::soln_limiters(&guesses);
 
             // dbg!(guesses);
 
@@ -172,16 +186,31 @@ impl EulerSolution1d {
 
             // use guesses to adjust cell updates
             for i in 1..old_soln.cells.len() - 1 {
+                // let left_flux =
+                //     flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
+                // let right_flux =
+                //     flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+
                 // old values
                 let left_flux =
-                    flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
-                let right_flux =
-                    flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+                        flux_fn.calculate_flux(old_soln.cells[i - 1].reconstruct(old_limits[i-1]),
+                                               old_soln.cells[i].reconstruct(-1.0 * old_limits[i]),
+                                               time_step);
+                    let right_flux =
+                        flux_fn.calculate_flux(old_soln.cells[i].reconstruct(old_limits[i]),
+                                               old_soln.cells[i + 1].reconstruct(-1.0 * old_limits[i+1]),
+                                               time_step);
 
                 // guess values
-                let left_flux_guess = flux_fn.calculate_flux(guesses[i - 1], guesses[i], time_step);
+                let left_flux_guess =
+                    flux_fn.calculate_flux(guesses[i - 1].reconstruct(guess_limits[i-1]),
+                                           guesses[i].reconstruct(-1.0 * guess_limits[i]),
+                                           time_step);
+
                 let right_flux_guess =
-                    flux_fn.calculate_flux(guesses[i], guesses[i + 1], time_step);
+                    flux_fn.calculate_flux(guesses[i].reconstruct(guess_limits[i]),
+                                           guesses[i + 1].reconstruct(-1.0 * guess_limits[i+1]),
+                                           time_step);
 
                 // update cell with guess-averaged values
                 // -- combine left, right fluxes
