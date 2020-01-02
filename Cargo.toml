@@ -11,6 +11,9 @@ path = "src/lib.rs"
 [dependencies]
 rand = "0.7"
 
+# safe unsigned-float conversions
+num-traits = "0.2"
+
 # our homebrew midpoint rule fork of gauss-quad
 gauss-quad = { git = "https://github.com/mxxo/gauss-quad", branch = "midpoint-rule" }
 

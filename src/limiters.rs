@@ -123,7 +123,7 @@ mod tests {
     extern crate rand;
 
     use super::*;
-    use crate::euler::PrimitiveState;
+    use crate::euler1d::PrimitiveState;
     use approx::*;
     use rand::Rng;
 

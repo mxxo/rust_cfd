@@ -12,26 +12,6 @@ use crate::riemann::{waves::DataPoint, DomainBounds, EulerState, StateSide};
 
 use std::ops::{Add, Mul, Sub};
 
-pub trait EulerBoundary1d {
-    fn leftmost_flux(&self, soln: &EulerSolution1d) -> EulerFlux;
-    fn rightmost_flux(&self, soln: &EulerSolution1d) -> EulerFlux;
-}
-
-pub struct FixedBoundary {
-    pub left_state: PrimitiveState,
-    pub right_state: PrimitiveState,
-}
-
-impl EulerBoundary1d for FixedBoundary {
-    fn leftmost_flux(&self, _: &EulerSolution1d) -> EulerFlux {
-        EulerFlux::new(self.left_state)
-    }
-
-    fn rightmost_flux(&self, _: &EulerSolution1d) -> EulerFlux {
-        EulerFlux::new(self.right_state)
-    }
-}
-
 // the solution vector
 #[derive(Debug, Clone)]
 pub struct EulerSolution1d {
@@ -236,19 +216,6 @@ impl EulerSolution1d {
 fn domain_from_bounds(bounds: DomainBounds, num_cells: usize) -> Vec<Boundary1d> {
     use crate::pde::make_domain;
     make_domain(bounds.left, bounds.right, num_cells)
-}
-
-// ----------------------------------------------------------------------------
-// Flux functions
-// ----------------------------------------------------------------------------
-
-/// Possible flux functions for Euler.
-#[derive(Debug, Clone, Copy)]
-pub enum FluxType {
-    Exact,
-    HLLE,
-    Roe,
-    RoeEntropy,
 }
 
 /// A primitive set of variables for the Euler equations.
