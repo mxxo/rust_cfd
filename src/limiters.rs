@@ -1,7 +1,7 @@
 //! Slope limiters for assignment 4
 //! -- Max Orok December 2019
 
-use crate::euler::EulerCell1d;
+use crate::euler1d::EulerCell1d;
 use crate::fluxes::EulerCellDelta;
 use std::ops::{Mul, Sub};
 

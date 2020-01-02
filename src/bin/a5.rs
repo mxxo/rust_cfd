@@ -1,12 +1,13 @@
-//!  Finite-Volume methods assignment 3
-//!  Max Orok, November-December 2019
+//! Assignment 5 Max Orok
+//! December-January 2019
+//!
 //! -----------------------------------------------------------------------------
-//!   Approximate flux function comparison for the 1D Euler equations
+//! 2D Euler solver
 //! -----------------------------------------------------------------------------
 
 use rust_cfd::euler1d::{EulerSolution1d, PrimitiveResult, PrimitiveState};
 
-// assignment 3
+// assignment 4
 use rust_cfd::fluxes;
 use rust_cfd::fluxes::FluxFunction;
 
@@ -23,12 +24,14 @@ struct SolnSpec {
 }
 
 fn main() {
+    // uncomment to try different flux functions
+
     // let flux_fn = fluxes::Exact {};
-    //     let flux_fn = fluxes::Roe {};
-    //   let flux_fn = fluxes::RoeEntropyFix {};
+    // let flux_fn = fluxes::Roe {};
+    // let flux_fn = fluxes::RoeEntropyFix {};
     let flux_fn = fluxes::Hlle {};
 
-    let num_cells = 400;
+    let num_cells = 100;
     let cfl = 0.99;
 
     println!("\ncase 1\n");
@@ -186,12 +189,7 @@ fn solve_euler_eqns(
         soln_spec.cfl,
     );
 
-    // let b_conds = FixedBoundary {
-    //     left_state,
-    //     right_state,
-    // };
-
-    let res = soln.first_order_time_march(flux_fn, soln_spec.t_final);
+    let res = soln.second_order_time_march(flux_fn, soln_spec.t_final);
 
     let res: Vec<_> = res
         .into_iter()

@@ -5,7 +5,7 @@
 //! Predictor-corrector time marching and slope limiters
 //! -----------------------------------------------------------------------------
 
-use rust_cfd::euler::{EulerSolution1d, PrimitiveResult, PrimitiveState};
+use rust_cfd::euler1d::{EulerSolution1d, PrimitiveResult, PrimitiveState};
 
 // assignment 4
 use rust_cfd::fluxes;

@@ -3,7 +3,7 @@
 //! The concept of a flux is something that takes two cells and finds the flux
 //! at the boundary.
 
-use crate::euler::{EulerCell1d, EulerFlux, PrimitiveState};
+use crate::euler1d::{EulerCell1d, EulerFlux, PrimitiveState};
 use crate::riemann::{solve_euler, DomainBounds, StateSide};
 
 pub trait FluxFunction {
