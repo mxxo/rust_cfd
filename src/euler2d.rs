@@ -10,18 +10,47 @@ extern crate num_traits; // safe unsigned-float conversions
 // ----------------------------------------------------------------------------
 // Library imports
 // ----------------------------------------------------------------------------
+use std::convert::From;
+use std::ops::{Add, Mul, Sub};
+
 use crate::euler1d::*;
 use crate::fluxes::*;
 use crate::limiters::VanAlbada;
 use crate::pde::Boundary1d;
 use crate::riemann::{waves::DataPoint, DomainBounds, EulerState, StateSide};
 
-use std::ops::{Add, Mul, Sub};
-
 #[derive(Debug, Clone, Copy)]
 pub struct Point2d {
     pub x: f64,
     pub y: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EulerPrimitive2d {
+    pub density: f64,
+    pub x_vel: f64,
+    pub y_vel: f64,
+    pub pressure: f64,
+    pub gamma: f64,
+}
+
+impl EulerPrimitive2d {
+    pub fn energy(self) -> f64 {
+        self.pressure / (self.gamma - 1.0)
+            + (0.5 * self.density * (self.x_vel * self.x_vel + self.y_vel * self.y_vel))
+    }
+}
+
+impl From<EulerPrimitive2d> for StateVec2d {
+    fn from(prim: EulerPrimitive2d) -> Self {
+        Self {
+            density: prim.density,
+            x_momentum: prim.density * prim.x_vel,
+            y_momentum: prim.density * prim.y_vel,
+            energy: prim.energy(),
+            gamma: prim.gamma,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -49,7 +78,7 @@ impl EulerCell2d {
         }
     }
 
-    pub fn empty(min: Point2d, max: Point2d) -> Self {
+    pub fn new(min: Point2d, max: Point2d) -> Self {
         Self {
             state: StateVec2d {
                 density: 0.0,
@@ -61,6 +90,14 @@ impl EulerCell2d {
             min,
             max,
         }
+    }
+
+    pub fn fill_state<T>(&mut self, new_state: T)
+    where
+        T: Into<StateVec2d>,
+    {
+        let new_state: StateVec2d = new_state.into();
+        self.state = new_state;
     }
 }
 
@@ -112,7 +149,7 @@ impl EulerSolution2d {
 
         for j in 0..num_y {
             for i in 0..num_x {
-                cells.push(EulerCell2d::empty(
+                cells.push(EulerCell2d::new(
                     Point2d {
                         x: x_step * f64::from_usize(i).unwrap() + min_point.x,
                         y: y_step * f64::from_usize(j).unwrap() + min_point.y,
@@ -152,15 +189,17 @@ impl EulerSolution2d {
     }
 
     /// Populate the grid using an expression based on each cell's `x-y` position.
-    /// Uses zero-indexing.
-    pub fn init<F>(&mut self, pos_expr: F)
+    pub fn init<F, T>(&mut self, pos_expr: F)
     where
-        F: Fn(f64, f64) -> f64,
+        F: Fn(Point2d) -> T,
+        T: Into<StateVec2d>,
     {
-        unimplemented!();
+        for cell in &mut self.cells {
+            cell.fill_state(pos_expr(cell.centroid().into()));
+        }
     }
 
-    /// Get the cell at `[x_idx][y_idx]`.
+    /// Get the cell at `[x_idx][y_idx]`. Uses zero-indexing.
     pub fn at(&self, x_idx: usize, y_idx: usize) -> EulerCell2d {
         // built-in bounds-checking
         self.cells[self.index(x_idx, y_idx)]

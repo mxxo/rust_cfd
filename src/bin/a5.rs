@@ -9,7 +9,7 @@
 use rust_cfd::euler2d::*;
 use rust_cfd::fluxes;
 
-use rust_cfd::riemann::DomainBounds;
+// use rust_cfd::riemann::DomainBounds;
 
 // given as the same for both gases
 const GAMMA: f64 = 1.4;
@@ -23,7 +23,32 @@ const GAMMA: f64 = 1.4;
 
 fn main() {
     let sq_width = 2;
-    let soln = EulerSolution2d::square(sq_width, Point2d { x: -0.5, y: -0.5 }, Point2d { x: 0.5, y: 0.5 });
+    let mut soln = EulerSolution2d::square(
+        sq_width,
+        Point2d { x: -0.5, y: -0.5 },
+        Point2d { x: 0.5, y: 0.5 },
+    );
+
+    let u1 = EulerPrimitive2d {
+        density: 1.225,
+        x_vel: 0.0,
+        y_vel: 0.0,
+        pressure: 101325.0,
+        gamma: GAMMA,
+    };
+
+    let u2 = EulerPrimitive2d {
+        density: 0.30625,
+        x_vel: 0.0,
+        y_vel: 0.0,
+        pressure: 25331.25,
+        gamma: GAMMA,
+    };
+
+    let case_1_init = |point: Point2d| if point.x < 0.0 && point.y < 0.0 { u2 } else { u1 };
+
+    // initialize solution grid
+    soln.init(case_1_init);
 
     let flux_fn = fluxes::Exact {};
     // let flux_fn = fluxes::Roe {};
@@ -35,9 +60,9 @@ fn main() {
 
     let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
 
-    // for cell in cells {
-    //     println!("centroid: {:?}", cell.centroid());
-    // }
+    for cell in cells {
+        dbg!(cell);
+    }
 }
 
 // // uncomment to try different flux functions
