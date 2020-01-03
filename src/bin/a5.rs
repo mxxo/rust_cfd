@@ -45,7 +45,13 @@ fn main() {
         gamma: GAMMA,
     };
 
-    let case_1_init = |point: Point2d| if point.x < 0.0 && point.y < 0.0 { u2 } else { u1 };
+    let case_1_init = |point: Point2d| {
+        if point.x < 0.0 && point.y < 0.0 {
+            u2
+        } else {
+            u1
+        }
+    };
 
     // initialize solution grid
     soln.init(case_1_init);
@@ -57,6 +63,8 @@ fn main() {
 
     let cfl = 0.5;
     let t_final = 1e0;
+
+    let nodes = soln.nodes();
 
     let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
 

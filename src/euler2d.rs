@@ -128,9 +128,9 @@ pub struct EulerSolution2d {
     /// Cell states
     cells: Vec<EulerCell2d>,
     /// Number of x cells.
-    num_x: usize,
+    pub num_x: usize,
     /// Number of y cells.
-    num_y: usize,
+    pub num_y: usize,
     // the smallest cell boundaries
     pub delta_x: f64,
     pub delta_y: f64,
@@ -246,6 +246,48 @@ impl EulerSolution2d {
         // }
 
         // self.cells
+    }
+
+    // data viz for cells
+    pub fn nodes(&self) -> Vec<Point2d> {
+        let mut result = Vec::with_capacity(self.cells.len() + self.num_x + 1);
+        dbg!(result.len());
+
+        // scrape off the bottom nodes of each row
+        for (idx, cell) in self.cells.iter().enumerate() {
+            // first column of cells need their min cell values
+            if idx % self.num_x == 0 {
+                result.push(Point2d {
+                    x: cell.min.x,
+                    y: cell.min.y,
+                });
+            }
+            // always push this cell
+            result.push(Point2d {
+                x: cell.max.x,
+                y: cell.min.y,
+            });
+        }
+
+        // take top points of top row of cells
+        for (idx, cell) in self.cells[self.cells.len() - self.num_x..]
+            .iter()
+            .enumerate()
+        {
+            if idx % self.num_x == 0 {
+                result.push(Point2d {
+                    x: cell.min.x,
+                    y: cell.max.y,
+                });
+            }
+            // always push this cell
+            result.push(Point2d {
+                x: cell.max.x,
+                y: cell.max.y,
+            });
+        }
+
+        result
     }
 }
 
