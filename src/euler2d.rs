@@ -241,7 +241,7 @@ impl EulerSolution2d {
         T: Into<StateVec2d>,
     {
         for cell in &mut self.cells {
-            cell.fill_state(pos_expr(cell.centroid().into()));
+            cell.fill_state(pos_expr(cell.centroid()));
         }
     }
 
@@ -356,15 +356,13 @@ impl EulerSolution2d {
 
         let mut result = Vec::with_capacity(self.cells.len());
 
-        let mut col = 0;
-        for j in 0..self.num_y {
+        for (row, j) in (0..self.num_y).enumerate() {
             for i in 0..self.num_x {
-                let idx = self.index(i, j) + col;
+                let idx = self.index(i, j) + row;
                 // bottom left, bottom right, top right, top left
                 // -- same as gmsh quad ordering
                 result.push([idx, idx+1, idx + self.num_x + 2, idx + self.num_x + 1]);
             }
-            col += 1;
         }
 
         result
@@ -380,21 +378,21 @@ impl EulerSolution2d {
         let mut filestream = BufWriter::new(File::create(&path).unwrap());
 
         // gmsh header
-        write!(&mut filestream, "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n").unwrap();
+        writeln!(&mut filestream, "$MeshFormat\n2.2 0 8\n$EndMeshFormat").unwrap();
 
         write!(&mut filestream, "$Nodes\n{}\n", nodes.len()).unwrap();
         for (index, point) in nodes.iter().enumerate() {
-            // gmsh wants 1-indexing
-            write!(&mut filestream, "{} {} {} {}\n", index+1, point.x, point.y, 0.0).unwrap();
+            // gmsh wants 1-indexing and all z-coords are 0.0
+            writeln!(&mut filestream, "{} {} {} 0.0", index+1, point.x, point.y).unwrap();
         }
-        write!(&mut filestream, "$EndNodes\n").unwrap();
+        writeln!(&mut filestream, "$EndNodes").unwrap();
 
-        write!(&mut filestream, "$Elements\n{}\n", elts.len()).unwrap();
+        writeln!(&mut filestream, "$Elements\n{}", elts.len()).unwrap();
         for (index, elt_nodes) in elts.iter().enumerate() {
             // 3 2 0 0 is a magic string for gmsh, telling it we have a quad shape. see the gmsh doc for more
-            write!(&mut filestream, "{} 3 2 0 0 {} {} {} {}\n", index+1, elt_nodes[0]+1, elt_nodes[1]+1, elt_nodes[2]+1, elt_nodes[3]+1).unwrap();
+            writeln!(&mut filestream, "{} 3 2 0 0 {} {} {} {}", index+1, elt_nodes[0]+1, elt_nodes[1]+1, elt_nodes[2]+1, elt_nodes[3]+1).unwrap();
         }
-        write!(&mut filestream, "$EndElements\n").unwrap();
+        writeln!(&mut filestream, "$EndElements").unwrap();
 
         // fill data buffers -- maybe a nicer way with iterators
         let mut densities: Vec<f64> = Vec::with_capacity(data.len());
@@ -402,8 +400,8 @@ impl EulerSolution2d {
         let mut y_vels: Vec<f64> = Vec::with_capacity(data.len());
         let mut pressures: Vec<f64> = Vec::with_capacity(data.len());
 
-        for pair in data.iter().map(|conserved| conserved.state.into()).enumerate() {
-            let (index, state): (_, EulerPrimitive2d) = pair;
+        for state in data.iter().map(|conserved| conserved.state.into()).collect::<Vec<EulerPrimitive2d>>() {
+            // let (index, state): (_, EulerPrimitive2d) = pair;
 
             densities.push(state.density);
             x_vels.push(state.x_vel);
@@ -412,20 +410,20 @@ impl EulerSolution2d {
         }
 
         let mut write_elt_data = |name: &str, data: Vec<f64>| {
-            write!(&mut filestream, "$ElementData\n").unwrap();
+            writeln!(&mut filestream, "$ElementData").unwrap();
             // one string - the field name
-            write!(&mut filestream, "1\n{}\n", name).unwrap();
+            writeln!(&mut filestream, "1\n{}", name).unwrap();
             // one real value - the time
-            write!(&mut filestream, "1\n0.0\n").unwrap();
+            writeln!(&mut filestream, "1\n0.0").unwrap();
             // three int tags
             //   timestep 0
             //   1-component (scalar) field
             //   num_elt values
-            write!(&mut filestream, "3\n0\n1\n{}\n", data.len()).unwrap();
+            writeln!(&mut filestream, "3\n0\n1\n{}", data.len()).unwrap();
             for (index, val) in data.iter().enumerate() {
-                write!(&mut filestream, "{} {}\n", index+1, val).unwrap();
+                writeln!(&mut filestream, "{} {}", index+1, val).unwrap();
             }
-            write!(&mut filestream, "$EndElementData\n").unwrap();
+            writeln!(&mut filestream, "$EndElementData").unwrap();
         };
 
         // gmsh needs " characters as part of data title, otherwise are blank
@@ -486,7 +484,6 @@ mod tests {
         assert_relative_eq!(prim.gamma, prim2.gamma);
     }
 }
-
 // impl EulerSolution1d {
 //     pub fn init(
 //         left: PrimitiveState,

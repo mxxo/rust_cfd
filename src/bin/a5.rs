@@ -2,7 +2,7 @@
 //! December-January 2019
 //!
 //! -----------------------------------------------------------------------------
-//! 2D Euler solver
+//! Approximate 2D Euler solver
 //! -----------------------------------------------------------------------------
 
 // use rust_cfd::euler1d::{EulerSolution1d, PrimitiveResult, PrimitiveState};
@@ -12,8 +12,8 @@ use fluxes::FluxFunction;
 
 // constant for all gases
 const GAMMA: f64 = 1.4;
-const min: Point2d = Point2d { x: -0.5, y: -0.5 };
-const max: Point2d = Point2d { x: 0.5, y: 0.5 };
+const MIN: Point2d = Point2d { x: -0.5, y: -0.5 };
+const MAX: Point2d = Point2d { x: 0.5, y: 0.5 };
 
 fn main() {
     let sq_width = 500;
@@ -29,15 +29,15 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let mut soln = EulerSolution2d::square(
         sq_width,
-        min,
-        max,
+        MIN,
+        MAX,
     );
 
     let u1 = EulerPrimitive2d {
         density: 1.225,
         x_vel: 0.0,
         y_vel: 0.0,
-        pressure: 101325.0,
+        pressure: 101_325.0,
         gamma: GAMMA,
     };
 
@@ -45,7 +45,7 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
         density: 0.30625,
         x_vel: 0.0,
         y_vel: 0.0,
-        pressure: 25331.25,
+        pressure: 25_331.25,
         gamma: GAMMA,
     };
 
@@ -62,7 +62,6 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let t_final = 0.75e-3; // 0.75 ms
 
-    let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
     soln.write_gmsh("data/case1.msh");
 }
 
@@ -70,8 +69,8 @@ fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let mut soln = EulerSolution2d::square(
         sq_width,
-        min,
-        max,
+        MIN,
+        MAX,
     );
 
     let u1 = EulerPrimitive2d {
@@ -123,7 +122,6 @@ fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let t_final = 2.53e-3; // s
 
-    let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
     soln.write_gmsh("data/case2.msh");
 }
 
@@ -131,8 +129,8 @@ fn case_3(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let mut soln = EulerSolution2d::square(
         sq_width,
-        min,
-        max,
+        MIN,
+        MAX,
     );
 
     let u1 = EulerPrimitive2d {
@@ -184,6 +182,5 @@ fn case_3(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     let t_final = 1.9e-3; // s
 
-    let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
     soln.write_gmsh("data/case3.msh");
 }
