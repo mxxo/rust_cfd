@@ -11,9 +11,9 @@ extern crate num_traits; // safe unsigned-float conversions
 // Library imports
 // ----------------------------------------------------------------------------
 use std::convert::From;
-use std::ops::{Add, Mul, Sub};
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::ops::{Add, Mul, Sub};
 use std::path::Path;
 
 use crate::euler1d::*;
@@ -80,7 +80,6 @@ pub struct StateVec2d {
 }
 
 impl StateVec2d {
-
     pub fn to_x_flux(self) -> EulerFlux2d {
         EulerFlux2d {
             density_flux: self.density * self.x_vel(),
@@ -100,14 +99,18 @@ impl StateVec2d {
     }
 
     #[inline]
-    pub fn x_vel(self) -> f64 { self.x_momentum / self.density }
+    pub fn x_vel(self) -> f64 {
+        self.x_momentum / self.density
+    }
     #[inline]
-    pub fn y_vel(self) -> f64 { self.y_momentum / self.density }
+    pub fn y_vel(self) -> f64 {
+        self.y_momentum / self.density
+    }
     #[inline]
     pub fn pressure(self) -> f64 {
         (self.gamma - 1.0)
-            * (self.energy - 0.5 * self.density
-               * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
+            * (self.energy
+                - 0.5 * self.density * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
     }
 
     #[inline]
@@ -115,7 +118,6 @@ impl StateVec2d {
         self.gamma * self.pressure() / (self.gamma - 1.0)
             + (0.5 * self.density * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
     }
-
 }
 
 /// An axis-aligned rectangular cell.
@@ -270,7 +272,6 @@ impl EulerSolution2d {
         flux_fn: impl FluxFunction,
         t_final: f64,
     ) -> Vec<EulerCell2d> {
-
         self.data()
 
         // let mut t = 0.0;
@@ -301,7 +302,6 @@ impl EulerSolution2d {
         // self.cells
     }
 
-
     // data viz fns for solution
 
     pub fn mesh(&self) -> (Vec<Point2d>, Vec<[usize; 4]>) {
@@ -330,7 +330,7 @@ impl EulerSolution2d {
         }
 
         // take top points of top row of cells
-        for (idx, cell) in self.cells[self.cells.len()-self.num_x..]
+        for (idx, cell) in self.cells[self.cells.len() - self.num_x..]
             .iter()
             .enumerate()
         {
@@ -353,7 +353,6 @@ impl EulerSolution2d {
     /// Get the zero-indexed nodes that make up each element as a list of
     /// `[bottom_left, bottom_right, top_right, top_left]` indices.
     pub fn elements(&self) -> Vec<[usize; 4]> {
-
         let mut result = Vec::with_capacity(self.cells.len());
 
         for (row, j) in (0..self.num_y).enumerate() {
@@ -361,7 +360,7 @@ impl EulerSolution2d {
                 let idx = self.index(i, j) + row;
                 // bottom left, bottom right, top right, top left
                 // -- same as gmsh quad ordering
-                result.push([idx, idx+1, idx + self.num_x + 2, idx + self.num_x + 1]);
+                result.push([idx, idx + 1, idx + self.num_x + 2, idx + self.num_x + 1]);
             }
         }
 
@@ -370,7 +369,6 @@ impl EulerSolution2d {
 
     /// Save this solution as a Gmsh data file or die trying.
     pub fn write_gmsh(&self, filename: &str) {
-
         let (nodes, elts) = self.mesh();
         let data = self.data();
 
@@ -383,14 +381,23 @@ impl EulerSolution2d {
         write!(&mut filestream, "$Nodes\n{}\n", nodes.len()).unwrap();
         for (index, point) in nodes.iter().enumerate() {
             // gmsh wants 1-indexing and all z-coords are 0.0
-            writeln!(&mut filestream, "{} {} {} 0.0", index+1, point.x, point.y).unwrap();
+            writeln!(&mut filestream, "{} {} {} 0.0", index + 1, point.x, point.y).unwrap();
         }
         writeln!(&mut filestream, "$EndNodes").unwrap();
 
         writeln!(&mut filestream, "$Elements\n{}", elts.len()).unwrap();
         for (index, elt_nodes) in elts.iter().enumerate() {
             // 3 2 0 0 is a magic string for gmsh, telling it we have a quad shape. see the gmsh doc for more
-            writeln!(&mut filestream, "{} 3 2 0 0 {} {} {} {}", index+1, elt_nodes[0]+1, elt_nodes[1]+1, elt_nodes[2]+1, elt_nodes[3]+1).unwrap();
+            writeln!(
+                &mut filestream,
+                "{} 3 2 0 0 {} {} {} {}",
+                index + 1,
+                elt_nodes[0] + 1,
+                elt_nodes[1] + 1,
+                elt_nodes[2] + 1,
+                elt_nodes[3] + 1
+            )
+            .unwrap();
         }
         writeln!(&mut filestream, "$EndElements").unwrap();
 
@@ -400,7 +407,11 @@ impl EulerSolution2d {
         let mut y_vels: Vec<f64> = Vec::with_capacity(data.len());
         let mut pressures: Vec<f64> = Vec::with_capacity(data.len());
 
-        for state in data.iter().map(|conserved| conserved.state.into()).collect::<Vec<EulerPrimitive2d>>() {
+        for state in data
+            .iter()
+            .map(|conserved| conserved.state.into())
+            .collect::<Vec<EulerPrimitive2d>>()
+        {
             // let (index, state): (_, EulerPrimitive2d) = pair;
 
             densities.push(state.density);
@@ -421,7 +432,7 @@ impl EulerSolution2d {
             //   num_elt values
             writeln!(&mut filestream, "3\n0\n1\n{}", data.len()).unwrap();
             for (index, val) in data.iter().enumerate() {
-                writeln!(&mut filestream, "{} {}", index+1, val).unwrap();
+                writeln!(&mut filestream, "{} {}", index + 1, val).unwrap();
             }
             writeln!(&mut filestream, "$EndElementData").unwrap();
         };
@@ -465,7 +476,6 @@ mod tests {
 
     #[test]
     fn prim_conserved() {
-
         let prim = EulerPrimitive2d {
             density: 1.4,
             x_vel: 10.0,

@@ -6,9 +6,9 @@
 //! -----------------------------------------------------------------------------
 
 // use rust_cfd::euler1d::{EulerSolution1d, PrimitiveResult, PrimitiveState};
+use fluxes::FluxFunction;
 use rust_cfd::euler2d::*;
 use rust_cfd::fluxes;
-use fluxes::FluxFunction;
 
 // constant for all gases
 const GAMMA: f64 = 1.4;
@@ -26,12 +26,7 @@ fn main() {
 }
 
 fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
-
-    let mut soln = EulerSolution2d::square(
-        sq_width,
-        MIN,
-        MAX,
-    );
+    let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
         density: 1.225,
@@ -66,12 +61,7 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 }
 
 fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
-
-    let mut soln = EulerSolution2d::square(
-        sq_width,
-        MIN,
-        MAX,
-    );
+    let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
         density: 1.5,
@@ -126,12 +116,7 @@ fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 }
 
 fn case_3(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
-
-    let mut soln = EulerSolution2d::square(
-        sq_width,
-        MIN,
-        MAX,
-    );
+    let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
         density: 1.0,
