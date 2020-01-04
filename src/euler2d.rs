@@ -44,6 +44,7 @@ impl EulerPrimitive2d {
     }
 }
 
+// primitive to conserved
 impl From<EulerPrimitive2d> for StateVec2d {
     fn from(prim: EulerPrimitive2d) -> Self {
         Self {
@@ -56,6 +57,19 @@ impl From<EulerPrimitive2d> for StateVec2d {
     }
 }
 
+// conserved to primitive
+impl From<StateVec2d> for EulerPrimitive2d {
+    fn from(state_vec: StateVec2d) -> Self {
+        Self {
+            density: state_vec.density,
+            x_vel: state_vec.x_vel(),
+            y_vel: state_vec.y_vel(),
+            pressure: state_vec.pressure(),
+            gamma: state_vec.gamma,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct StateVec2d {
     pub density: f64,
@@ -63,6 +77,19 @@ pub struct StateVec2d {
     pub y_momentum: f64,
     pub energy: f64,
     pub gamma: f64,
+}
+
+impl StateVec2d {
+    #[inline]
+    pub fn x_vel(&self) -> f64 { self.x_momentum / self.density }
+    #[inline]
+    pub fn y_vel(&self) -> f64 { self.y_momentum / self.density }
+    #[inline]
+    pub fn pressure(&self) -> f64 {
+        (self.gamma - 1.0)
+            * (self.energy - 0.5 * self.density
+               * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
+    }
 }
 
 /// An axis-aligned rectangular cell.
@@ -401,6 +428,27 @@ mod tests {
         let cell = soln.at(1, 1);
         assert_relative_eq!(cell.centroid().x, 0.25);
         assert_relative_eq!(cell.centroid().y, 0.25);
+    }
+
+    #[test]
+    fn prim_conserved() {
+
+        let prim = EulerPrimitive2d {
+            density: 1.4,
+            x_vel: 10.0,
+            y_vel: -20.0,
+            pressure: 300e3,
+            gamma: 1.4,
+        };
+
+        let state_vec: StateVec2d = prim.clone().into();
+        let prim2: EulerPrimitive2d = state_vec.into();
+
+        assert_relative_eq!(prim.density, prim2.density);
+        assert_relative_eq!(prim.x_vel, prim2.x_vel);
+        assert_relative_eq!(prim.y_vel, prim2.y_vel);
+        assert_relative_eq!(prim.pressure, prim2.pressure);
+        assert_relative_eq!(prim.gamma, prim2.gamma);
     }
 }
 
