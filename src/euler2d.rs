@@ -12,6 +12,9 @@ extern crate num_traits; // safe unsigned-float conversions
 // ----------------------------------------------------------------------------
 use std::convert::From;
 use std::ops::{Add, Mul, Sub};
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::Path;
 
 use crate::euler1d::*;
 use crate::fluxes::*;
@@ -210,15 +213,22 @@ impl EulerSolution2d {
         x_idx + self.num_x * y_idx
     }
 
+    /// Get a copy of the solution data.
+    pub fn data(&self) -> Vec<EulerCell2d> {
+        self.cells.clone()
+    }
+
     // solver functions
+
     /// Time march this solution until a final time.
     pub fn first_order_time_march(
-        mut self,
+        &mut self,
         cfl: f64,
         flux_fn: impl FluxFunction,
         t_final: f64,
     ) -> Vec<EulerCell2d> {
-        self.cells
+
+        self.data()
 
         // let mut t = 0.0;
         // while t < t_final {
@@ -248,21 +258,74 @@ impl EulerSolution2d {
         // self.cells
     }
 
-    // data viz for cells
+    /// Save this solution as a Gmsh data file or die trying.
+    pub fn write_gmsh(&self, filename: &str) {
+
+        let (nodes, elts) = self.mesh();
+        let data = self.data();
+
+        let path = Path::new(filename);
+        let mut filestream = BufWriter::new(File::create(&path).unwrap());
+
+        // gmsh header
+        write!(&mut filestream, "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n").unwrap();
+
+        write!(&mut filestream, "$Nodes\n{}\n", nodes.len()).unwrap();
+        for (index, point) in nodes.iter().enumerate() {
+            // gmsh wants 1-indexing
+            write!(&mut filestream, "{} {} {} {}\n", index+1, point.x, point.y, 0.0).unwrap();
+        }
+        write!(&mut filestream, "$EndNodes\n").unwrap();
+
+        write!(&mut filestream, "$Elements\n{}\n", elts.len()).unwrap();
+        for (index, elt_nodes) in elts.iter().enumerate() {
+            // 3 2 0 0 is a magic string for gmsh, telling it we have a quad shape. see the gmsh doc for more
+            write!(&mut filestream, "{} 3 2 0 0 {} {} {} {}\n", index+1, elt_nodes[0]+1, elt_nodes[1]+1, elt_nodes[2]+1, elt_nodes[3]+1).unwrap();
+        }
+        write!(&mut filestream, "$EndElements").unwrap();
+
+        // fill data buffers -- maybe a nicer way with iterators
+        let mut densities: Vec<f64> = Vec::with_capacity(data.len());
+        let mut x_vels: Vec<f64> = Vec::with_capacity(data.len());
+        let mut y_vels: Vec<f64> = Vec::with_capacity(data.len());
+        let mut pressures: Vec<f64> = Vec::with_capacity(data.len());
+
+        // for pair in data.iter().map(|conserved| conserved.state.into()).enumerate() {
+        //     let (index, state): (_, EulerPrimitive2d) = pair;
+
+        //     densities.push(state.density);
+        //     x_vels.push(state.x_vel);
+        //     y_vels.push(state.y_vel);
+        //     pressures.push(state.pressure);
+        // }
+
+        // write!(&mut filestream, "$ElementData").unwrap();
+
+    }
+
+    // fn write_elt_data(&self,
+
+    // data viz fns for solution
+
+    pub fn mesh(&self) -> (Vec<Point2d>, Vec<[usize; 4]>) {
+        (self.nodes(), self.elements())
+    }
+
+    /// Get the coordinates of each node.
     pub fn nodes(&self) -> Vec<Point2d> {
         let mut result = Vec::with_capacity(self.cells.len() + self.num_x + 1);
-        dbg!(result.len());
 
         // scrape off the bottom nodes of each row
+        // -- could use chain to condense these loops
         for (idx, cell) in self.cells.iter().enumerate() {
-            // first column of cells need their min cell values
+            // take left boundary
             if idx % self.num_x == 0 {
                 result.push(Point2d {
                     x: cell.min.x,
-                    y: cell.min.y,
+                    y: cell.min.y, // bottom
                 });
             }
-            // always push this cell
+
             result.push(Point2d {
                 x: cell.max.x,
                 y: cell.min.y,
@@ -270,21 +333,41 @@ impl EulerSolution2d {
         }
 
         // take top points of top row of cells
-        for (idx, cell) in self.cells[self.cells.len() - self.num_x..]
+        for (idx, cell) in self.cells[self.cells.len()-self.num_x..]
             .iter()
             .enumerate()
         {
             if idx % self.num_x == 0 {
                 result.push(Point2d {
                     x: cell.min.x,
-                    y: cell.max.y,
+                    y: cell.max.y, // top
                 });
             }
-            // always push this cell
+
             result.push(Point2d {
                 x: cell.max.x,
                 y: cell.max.y,
             });
+        }
+
+        result
+    }
+
+    /// Get the zero-indexed nodes that make up each element as a list of
+    /// `[bottom_left, bottom_right, top_right, top_left]` indices.
+    pub fn elements(&self) -> Vec<[usize; 4]> {
+
+        let mut result = Vec::with_capacity(self.cells.len());
+
+        let mut col = 0;
+        for j in 0..self.num_y {
+            for i in 0..self.num_x {
+                let idx = self.index(i, j) + col;
+                // bottom left, bottom right, top right, top left
+                // -- same as gmsh quad ordering
+                result.push([idx, idx+1, idx + self.num_x + 2, idx + self.num_x + 1]);
+            }
+            col += 1;
         }
 
         result

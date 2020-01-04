@@ -64,13 +64,17 @@ fn main() {
     let cfl = 0.5;
     let t_final = 1e0;
 
-    let nodes = soln.nodes();
+    // let (nodes, elts) = soln.mesh();
+
+    // dbg!(&elts);
 
     let cells = soln.first_order_time_march(cfl, flux_fn, t_final);
 
-    for cell in cells {
-        dbg!(cell);
-    }
+    soln.write_gmsh("data/case1.msh");
+
+    // for cell in cells {
+    //     dbg!(cell);
+    // }
 }
 
 // // uncomment to try different flux functions
