@@ -22,7 +22,9 @@ const GAMMA: f64 = 1.4;
 // }
 
 fn main() {
-    let sq_width = 2;
+
+    let sq_width = 500;
+
     let mut soln = EulerSolution2d::square(
         sq_width,
         Point2d { x: -0.5, y: -0.5 },
