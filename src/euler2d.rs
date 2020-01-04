@@ -80,16 +80,42 @@ pub struct StateVec2d {
 }
 
 impl StateVec2d {
+
+    pub fn to_x_flux(self) -> EulerFlux2d {
+        EulerFlux2d {
+            density_flux: self.density * self.x_vel(),
+            x_momentum_flux: self.density * self.x_vel() * self.x_vel() + self.pressure(),
+            y_momentum_flux: self.density * self.x_vel() * self.y_vel(),
+            energy_flux: self.x_vel() * self.inner_energy_flux(),
+        }
+    }
+
+    pub fn to_y_flux(self) -> EulerFlux2d {
+        EulerFlux2d {
+            density_flux: self.density * self.y_vel(),
+            x_momentum_flux: self.density * self.x_vel() * self.y_vel(),
+            y_momentum_flux: self.density * self.y_vel() * self.y_vel() + self.pressure(),
+            energy_flux: self.y_vel() * self.inner_energy_flux(),
+        }
+    }
+
     #[inline]
-    pub fn x_vel(&self) -> f64 { self.x_momentum / self.density }
+    pub fn x_vel(self) -> f64 { self.x_momentum / self.density }
     #[inline]
-    pub fn y_vel(&self) -> f64 { self.y_momentum / self.density }
+    pub fn y_vel(self) -> f64 { self.y_momentum / self.density }
     #[inline]
-    pub fn pressure(&self) -> f64 {
+    pub fn pressure(self) -> f64 {
         (self.gamma - 1.0)
             * (self.energy - 0.5 * self.density
                * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
     }
+
+    #[inline]
+    fn inner_energy_flux(self) -> f64 {
+        self.gamma * self.pressure() / (self.gamma - 1.0)
+            + (0.5 * self.density * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
+    }
+
 }
 
 /// An axis-aligned rectangular cell.
@@ -131,23 +157,13 @@ impl EulerCell2d {
     }
 }
 
-impl EulerCell2d {
-    pub fn to_x_flux(self) -> EulerFlux2d {
-        unimplemented!();
-    }
-
-    pub fn to_y_flux(self) -> EulerFlux2d {
-        unimplemented!();
-    }
-}
-
 /// A 2d Euler equations flux vector.
 #[derive(Debug, Clone, Copy)]
 pub struct EulerFlux2d {
-    pub density: f64,
-    pub x_momentum: f64,
-    pub y_momentum: f64,
-    pub energy: f64,
+    pub density_flux: f64,
+    pub x_momentum_flux: f64,
+    pub y_momentum_flux: f64,
+    pub energy_flux: f64,
 }
 
 /// A grid of rectangular cells.
