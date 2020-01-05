@@ -425,6 +425,75 @@ impl EulerSolution2d {
         }
     }
 
+    pub fn second_order_time_march(&mut self, cfl: f64, flux_fn: impl FluxFunction2d, t_final: f64) {
+        let mut t = 0.0;
+        while t < t_final {
+            // skim off previous values
+            let old_soln = self.clone();
+
+            let time_step = if t + old_soln.max_stable_timestep(cfl) > t_final {
+                t_final - t
+            } else {
+                old_soln.max_stable_timestep(cfl)
+            };
+
+            // prediction
+
+            let guesses = {
+                // advance each guess cell
+                let mut guesses = old_soln.clone();
+                for j in 0..old_soln.num_y {
+                    for i in 0..old_soln.num_x {
+                        // x-fluxes
+                        let (left_flux, right_flux) = old_soln.find_x_fluxes(flux_fn, i, j);
+                        guesses.cells[old_soln.index(i, j)].advance(
+                            time_step / old_soln.delta_x,
+                            left_flux,
+                            right_flux,
+                        );
+                        // y-fluxes
+                        let (bottom_flux, top_flux) = old_soln.find_y_fluxes(flux_fn, i, j);
+                        guesses.cells[old_soln.index(i, j)].advance(
+                            time_step / old_soln.delta_y,
+                            bottom_flux,
+                            top_flux,
+                        );
+                    }
+                }
+
+                guesses
+            };
+
+            // correction
+            // -- take average flux based on naive cells and guess cells
+
+            for j in 0..old_soln.num_y {
+                for i in 0..old_soln.num_x {
+                    // naive cells
+                    let (left_flux, right_flux) = old_soln.find_x_fluxes(flux_fn, i, j);
+                    let (bottom_flux, top_flux) = old_soln.find_y_fluxes(flux_fn, i, j);
+                    // guessed fluxes
+                    let (guess_left_flux, guess_right_flux) = guesses.find_x_fluxes(flux_fn, i, j);
+                    let (guess_bottom_flux, guess_top_flux) = guesses.find_y_fluxes(flux_fn, i, j);
+
+                    // get avg
+                    let left_avg = 0.5 * (left_flux + guess_left_flux);
+                    let right_avg = 0.5 * (right_flux + guess_right_flux);
+                    let bottom_avg = 0.5 * (bottom_flux + guess_bottom_flux);
+                    let top_avg = 0.5 * (top_flux + guess_top_flux);
+
+                    self.cells[old_soln.index(i, j)].advance(
+                        time_step / old_soln.delta_x,
+                        left_avg + bottom_avg,
+                        right_avg + top_avg,
+                    );
+                }
+            }
+
+            t += time_step;
+        }
+    }
+
     fn max_stable_timestep(&self, cfl: f64) -> f64 {
         cfl * self.delta_x * self.delta_y / self.max_wave_speed()
     }
