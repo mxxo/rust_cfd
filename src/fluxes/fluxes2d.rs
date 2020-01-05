@@ -6,19 +6,18 @@ use super::*;
 #[derive(Debug, Clone, Copy)]
 pub struct Hlle2d;
 
-pub trait FluxFunction2d {
-    fn calculate_x_flux(&self, left: EulerCell2d, right: EulerCell2d, time_step: f64) -> EulerFlux2d;
-    fn calculate_y_flux(&self, bottom: EulerCell2d, top: EulerCell2d, time_step: f64) -> EulerFlux2d;
+pub trait FluxFunction2d : Copy {
+    fn calculate_x_flux(&self, left: EulerCell2d, right: EulerCell2d) -> EulerFlux2d;
+    fn calculate_y_flux(&self, bottom: EulerCell2d, top: EulerCell2d) -> EulerFlux2d;
 }
 
 impl FluxFunction2d for Hlle2d {
-    fn calculate_x_flux(&self, left: EulerCell2d, right: EulerCell2d, time_step: f64) -> EulerFlux2d {
+    fn calculate_x_flux(&self, left: EulerCell2d, right: EulerCell2d) -> EulerFlux2d {
         // find roe average along x-direction
-
         unimplemented!();
     }
 
-    fn calculate_y_flux(&self, bottom: EulerCell2d, top: EulerCell2d, time_step: f64) -> EulerFlux2d {
+    fn calculate_y_flux(&self, bottom: EulerCell2d, top: EulerCell2d) -> EulerFlux2d {
         unimplemented!();
     }
 }
@@ -78,4 +77,10 @@ impl Roe2d {
             gamma: left.gamma,
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
 }

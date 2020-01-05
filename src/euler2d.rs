@@ -16,8 +16,6 @@ use std::io::{BufWriter, Write};
 use std::ops::{Add, Mul, Sub};
 use std::path::Path;
 
-use crate::euler1d::*;
-use crate::fluxes::*;
 use crate::fluxes::fluxes2d::*;
 use crate::limiters::VanAlbada;
 use crate::pde::Boundary1d;
@@ -56,7 +54,6 @@ impl EulerPrimitive2d {
     pub fn sound_speed(self) -> f64 {
         (self.gamma - 1.0) * f64::sqrt(self.enthalpy() - 0.5 * self.velocity_sq())
     }
-
 }
 
 // primitive to conserved
@@ -134,6 +131,11 @@ impl StateVec2d {
     }
 
     #[inline]
+    pub fn sound_speed(self) -> f64 {
+        (self.gamma * self.pressure() / self.density).sqrt()
+    }
+
+    #[inline]
     fn inner_energy_flux(self) -> f64 {
         self.gamma * self.pressure() / (self.gamma - 1.0)
             + (0.5 * self.density * self.velocity_sq())
@@ -154,6 +156,14 @@ impl EulerCell2d {
             x: (self.min.x + self.max.x) / 2.0,
             y: (self.min.y + self.max.y) / 2.0,
         }
+    }
+
+    pub fn height(&self) -> f64 {
+        self.max.y - self.min.y
+    }
+
+    pub fn width(&self) -> f64 {
+        self.max.x - self.min.x
     }
 
     pub fn new(min: Point2d, max: Point2d) -> Self {
@@ -177,6 +187,15 @@ impl EulerCell2d {
         let new_state: StateVec2d = new_state.into();
         self.state = new_state;
     }
+
+    pub fn advance(&mut self, scaling_factor: f64, left_flux: EulerFlux2d, right_flux: EulerFlux2d) {
+        *self = self.cell_guess(scaling_factor, left_flux, right_flux);
+    }
+
+    pub fn cell_guess(self, scaling_factor: f64, left_flux: EulerFlux2d, right_flux: EulerFlux2d) -> EulerCell2d {
+        let net_flux = left_flux - right_flux;
+        self + scaling_factor * net_flux
+    }
 }
 
 /// A 2d Euler equations flux vector.
@@ -186,6 +205,75 @@ pub struct EulerFlux2d {
     pub x_momentum_flux: f64,
     pub y_momentum_flux: f64,
     pub energy_flux: f64,
+}
+
+impl EulerFlux2d {
+    pub fn empty() -> Self {
+        Self {
+            density_flux: 0.0,
+            x_momentum_flux: 0.0,
+            y_momentum_flux: 0.0,
+            energy_flux: 0.0,
+        }
+    }
+}
+
+impl Sub for EulerFlux2d {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            density_flux: self.density_flux - other.density_flux,
+            x_momentum_flux: self.x_momentum_flux - other.x_momentum_flux,
+            y_momentum_flux: self.y_momentum_flux - other.y_momentum_flux,
+            energy_flux: self.energy_flux - other.energy_flux,
+        }
+    }
+}
+
+// scalar multiplication
+impl Mul<EulerFlux2d> for f64 {
+    type Output = EulerFlux2d;
+
+    fn mul(self, rhs: EulerFlux2d) -> Self::Output {
+        EulerFlux2d {
+            density_flux: self * rhs.density_flux,
+            x_momentum_flux: self * rhs.x_momentum_flux,
+            y_momentum_flux: self * rhs.y_momentum_flux,
+            energy_flux: self * rhs.energy_flux,
+        }
+    }
+}
+
+impl Add<EulerFlux2d> for EulerFlux2d {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            density_flux: self.density_flux + rhs.density_flux,
+            x_momentum_flux: self.x_momentum_flux + rhs.x_momentum_flux,
+            y_momentum_flux: self.y_momentum_flux + rhs.y_momentum_flux,
+            energy_flux: self.energy_flux + rhs.energy_flux,
+        }
+    }
+}
+
+
+impl Add<EulerFlux2d> for EulerCell2d {
+    type Output = Self;
+
+    fn add(self, rhs: EulerFlux2d) -> Self::Output {
+        Self {
+            state: StateVec2d {
+                density: self.state.density + rhs.density_flux,
+                x_momentum: self.state.x_momentum + rhs.x_momentum_flux,
+                y_momentum: self.state.y_momentum + rhs.y_momentum_flux,
+                energy: self.state.energy + rhs.energy_flux,
+                gamma: self.state.gamma,
+           },
+            ..self
+        }
+    }
 }
 
 /// A grid of rectangular cells.
@@ -294,33 +382,73 @@ impl EulerSolution2d {
     ) {
 
         let mut t = 0.0;
+        while t < t_final {
+            // skim off previous values
+            let old_soln = self.clone();
+            let time_step = if t + old_soln.max_stable_timestep(cfl) > t_final {
+                t_final - t
+            } else {
+                old_soln.max_stable_timestep(cfl)
+            };
+
+            for j in 0..old_soln.num_y {
+                for i in 0..old_soln.num_x {
+                    // x-fluxes
+                    let (left_flux, right_flux) = old_soln.find_x_fluxes(flux_fn, i, j);
+                    self.cells[old_soln.index(i, j)].advance(time_step / old_soln.delta_x, left_flux, right_flux);
+                    // y-fluxes
+                    let (bottom_flux, top_flux) = old_soln.find_y_fluxes(flux_fn, i, j);
+                    self.cells[old_soln.index(i, j)].advance(time_step / old_soln.delta_y, bottom_flux, top_flux);
+                }
+            }
+            t += time_step;
+        }
+    }
+
+    fn max_stable_timestep(&self, cfl: f64) -> f64 {
+        cfl * f64::min(self.delta_x, self.delta_y) / self.max_wave_speed()
+    }
+
+    fn max_wave_speed(&self) -> f64 {
+        self.cells
+            .iter()
+            .map(|cell|
+                 f64::max(cell.state.x_vel().abs() + cell.state.sound_speed(),
+                          cell.state.y_vel().abs() + cell.state.sound_speed()))
+            .fold(0.0, |a, b| a.max(b)) // reduce to maximum
+    }
 
 
+    fn find_x_fluxes(&self, flux_fn: impl FluxFunction2d, i: usize, j: usize) -> (EulerFlux2d, EulerFlux2d) {
+        let left_flux = if i == 0 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_x_flux(self.at(i-1, j), self.at(i, j))
+        };
 
-        //while t < t_final {
-        //     // skim off previous values
-        //     let old_soln = self.clone();
-        //     let time_step = if t + old_soln.max_stable_timestep() > t_final {
-        //         t_final - t
-        //     } else {
-        //         old_soln.max_stable_timestep()
-        //     };
+        let right_flux = if i == self.num_x - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_x_flux(self.at(i, j), self.at(i+1, j))
+        };
 
-        //     // ignore boundaries for now :)), we don't really care about them
-        //     // for our four reference problems
-        //     for i in 1..old_soln.cells.len() - 1 {
-        //         let left_flux =
-        //             flux_fn.calculate_flux(old_soln.cells[i - 1], old_soln.cells[i], time_step);
-        //         let right_flux =
-        //             flux_fn.calculate_flux(old_soln.cells[i], old_soln.cells[i + 1], time_step);
+        (left_flux, right_flux)
+    }
 
-        //         self.cells[i].advance(time_step, left_flux, right_flux);
-        //     }
+    fn find_y_fluxes(&self, flux_fn: impl FluxFunction2d, i: usize, j: usize) -> (EulerFlux2d, EulerFlux2d) {
+        let bottom_flux = if j == 0 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_y_flux(self.at(i, j-1), self.at(i, j))
+        };
 
-        //     t += time_step;
-        // }
+        let top_flux = if j == self.num_y - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_y_flux(self.at(i, j), self.at(i, j+1))
+        };
 
-        unimplemented!();
+        (bottom_flux, top_flux)
     }
 
     // data viz fns for solution
@@ -515,47 +643,6 @@ mod tests {
         assert_relative_eq!(prim.gamma, prim2.gamma);
     }
 }
-// impl EulerSolution1d {
-//     pub fn init(
-//         left: PrimitiveState,
-//         right: PrimitiveState,
-//         bounds: DomainBounds,
-//         num_cells: usize,
-//         cfl: f64,
-//     ) -> Self {
-//         // initialize the domain
-//         let domain = domain_from_bounds(bounds, num_cells);
-//
-//         // reserve space for the cell vector
-//         let mut cells: Vec<EulerCell1d> = Vec::with_capacity(num_cells);
-//
-//         // initialize solution vector
-//         for cell_idx in 0..num_cells {
-//             let left_coord = domain[cell_idx].coord;
-//             let right_coord = domain[cell_idx + 1].coord;
-//
-//             let center = (right_coord + left_coord) / 2.0;
-//
-//             if center <= bounds.interface {
-//                 cells.push(EulerCell1d::new(left, (left_coord, right_coord)));
-//             } else {
-//                 cells.push(EulerCell1d::new(right, (left_coord, right_coord)));
-//             }
-//         }
-//
-//         let delta_x = cells
-//             .iter()
-//             .map(|cell| cell.right - cell.left) // extract cell widths
-//             .fold(std::f64::INFINITY, |a, b| a.min(b)); // reduce to minimum value
-//
-//         Self {
-//             cells,
-//             domain,
-//             delta_x,
-//             cfl,
-//         }
-//     }
-//
 //     // max (absolute) wave speed is either
 //     //   |u - a| or |u + a|
 //     // where u can be negative. we can simplify this
