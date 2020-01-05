@@ -2,6 +2,8 @@
 //! -- Max Orok December 2019
 
 use crate::euler1d::EulerCell1d;
+use crate::euler2d::{EulerCell2d, StateVec2d, EulerSolution2d};
+
 use crate::fluxes::EulerCellDelta;
 use std::ops::{Mul, Sub};
 
@@ -11,6 +13,15 @@ use std::ops::{Mul, Sub};
 pub struct EulerLimit {
     pub density_limit: f64,
     pub momentum_limit: f64,
+    pub energy_limit: f64,
+}
+
+/// 2D slope limiters for the Euler equations.
+#[derive(Debug, Copy, Clone)]
+pub struct EulerLimit2d {
+    pub density_limit: f64,
+    pub x_momentum_limit: f64,
+    pub y_momentum_limit: f64,
     pub energy_limit: f64,
 }
 
@@ -34,6 +45,26 @@ impl EulerCell1d {
             energy: self.energy + limiter.energy_limit,
             ..self
         }
+    }
+}
+
+impl EulerCell2d {
+    /// Reconstruct the 2d state using a limiter. Exit states should be scaled by `-1.0`.
+    pub fn reconstruct(self, limiter: EulerLimit2d) -> Self {
+        // FIXME only OK for square cells
+        let limiter = 0.5 * self.width() * limiter;
+
+        Self {
+            state: StateVec2d {
+                density: self.state.density + limiter.density_limit,
+                x_momentum: self.state.x_momentum + limiter.x_momentum_limit,
+                y_momentum: self.state.y_momentum + limiter.y_momentum_limit,
+                energy: self.state.energy + limiter.energy_limit,
+                ..self.state
+            },
+            ..self
+        }
+
     }
 }
 
@@ -74,8 +105,35 @@ impl Mul<EulerLimit> for f64 {
     }
 }
 
+impl Mul<EulerLimit2d> for f64 {
+    type Output = EulerLimit2d;
+
+    fn mul(self, rhs: Self::Output) -> Self::Output {
+        Self::Output {
+            density_limit: self * rhs.density_limit,
+            x_momentum_limit: self * rhs.x_momentum_limit,
+            y_momentum_limit: self * rhs.y_momentum_limit,
+            energy_limit: self * rhs.energy_limit,
+        }
+    }
+}
+
+impl Mul<StateVec2d> for f64 {
+    type Output = StateVec2d;
+
+    fn mul(self, rhs: Self::Output) -> Self::Output {
+        Self::Output {
+            density: self * rhs.density,
+            x_momentum: self * rhs.x_momentum,
+            y_momentum: self * rhs.y_momentum,
+            energy: self * rhs.energy,
+            ..rhs
+        }
+    }
+}
+
 impl VanAlbada {
-    /// Get the series of slope limiters for a solution.
+    /// Get the series of slope limiters for a `1D`solution.
     pub fn soln_limiters(soln: &Vec<EulerCell1d>) -> Vec<EulerLimit> {
         let mut limiters: Vec<EulerLimit> = Vec::with_capacity(soln.len());
 
@@ -114,10 +172,76 @@ impl VanAlbada {
                 + forward_difference * forward_difference
                 + 1e-8)
     }
+
+    /// 2d limiter functions - a poor man's Venkatakrishnan limiter piggybacking off of
+    /// Van Albada for square cells. Returns limiters as a vector of `(x_limiter, y_limiter)`.
+    pub fn soln_2d_limiters(soln: &EulerSolution2d) -> Vec<(EulerLimit2d, EulerLimit2d)> {
+        let mut limiters = Vec::with_capacity(soln.num_x * soln.num_y);
+
+        // first cell take a copy as left cell
+        for j in 0..soln.num_y {
+            for i in 0..soln.num_x {
+
+                let this_cell = soln.at(i, j);
+
+                let left_cell = if i == 0 {
+                    soln.at(i, j)
+                } else {
+                    soln.at(i-1, j)
+                };
+
+                let right_cell = if i == soln.num_x-1 {
+                    soln.at(i, j)
+                } else {
+                    soln.at(i+1, j)
+                };
+
+                let x_limiter = Self::limiter_2d(left_cell, this_cell, right_cell);
+
+                //
+
+                let bottom_cell = if j == 0 {
+                    soln.at(i, j)
+                } else {
+                    soln.at(i, j-1)
+                };
+
+                let top_cell = if j == soln.num_y-1 {
+                    soln.at(i, j)
+                } else {
+                    soln.at(i, j+1)
+                };
+
+                let y_limiter = Self::limiter_2d(bottom_cell, this_cell, top_cell);
+
+                limiters.push((x_limiter, y_limiter));
+            }
+        }
+
+        limiters
+    }
+
+    /// Find the limiter based on the centered difference of this cell.
+    pub fn limiter_2d(prec: EulerCell2d, middle: EulerCell2d, next: EulerCell2d) -> EulerLimit2d {
+        // FIXME for non-square cells
+        let backward_diff = 1.0 / middle.width() * (middle.state - prec.state);
+        let forward_diff = 1.0 / middle.width() * (next.state - middle.state);
+
+        EulerLimit2d {
+            density_limit: Self::limit(backward_diff.density, forward_diff.density),
+            x_momentum_limit: Self::limit(backward_diff.x_momentum, forward_diff.x_momentum),
+            y_momentum_limit: Self::limit(backward_diff.y_momentum, forward_diff.y_momentum),
+            energy_limit: Self::limit(backward_diff.energy, forward_diff.energy),
+        }
+    }
+
+    // /// The *Venkatakrishnan* limiter, as implemented in Kitamura and Shima (2012)
+    // /// Link: https://arc.aiaa.org/doi/abs/10.2514/1.J051269?journalCode=aiaaj
+    // pub fn venkata_limit() -> EulerLimit2d
+
 }
 
 #[cfg(test)]
-
 mod tests {
     extern crate approx;
     extern crate rand;
