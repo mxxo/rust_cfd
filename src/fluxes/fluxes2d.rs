@@ -157,7 +157,7 @@ impl EulerPrimitive2d {
     pub fn as_xy_primitive(self) -> PrimitiveState {
         PrimitiveState {
             density: self.density,
-            velocity: self.velocity_sq(),
+            velocity: self.velocity_sq().sqrt(),
             pressure: self.pressure,
             gamma: self.gamma,
         }
