@@ -17,6 +17,7 @@ use std::ops::{Add, Mul, Sub};
 use std::path::Path;
 
 use crate::fluxes::fluxes2d::FluxFunction2d;
+use crate::limiters::{EulerLimit2d, VanAlbada};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point2d {
@@ -425,7 +426,12 @@ impl EulerSolution2d {
         }
     }
 
-    pub fn second_order_time_march(&mut self, cfl: f64, flux_fn: impl FluxFunction2d, t_final: f64) {
+    pub fn second_order_time_march(
+        &mut self,
+        cfl: f64,
+        flux_fn: impl FluxFunction2d,
+        t_final: f64,
+    ) {
         let mut t = 0.0;
         while t < t_final {
             // skim off previous values
@@ -437,6 +443,9 @@ impl EulerSolution2d {
                 old_soln.max_stable_timestep(cfl)
             };
 
+            // find slope limiters
+            let old_xy_limiters = VanAlbada::soln_2d_limiters(&old_soln);
+
             // prediction
 
             let guesses = {
@@ -445,14 +454,16 @@ impl EulerSolution2d {
                 for j in 0..old_soln.num_y {
                     for i in 0..old_soln.num_x {
                         // x-fluxes
-                        let (left_flux, right_flux) = old_soln.find_x_fluxes(flux_fn, i, j);
+                        let (left_flux, right_flux) =
+                            old_soln.recon_x_fluxes(flux_fn, &old_xy_limiters, i, j);
                         guesses.cells[old_soln.index(i, j)].advance(
                             time_step / old_soln.delta_x,
                             left_flux,
                             right_flux,
                         );
                         // y-fluxes
-                        let (bottom_flux, top_flux) = old_soln.find_y_fluxes(flux_fn, i, j);
+                        let (bottom_flux, top_flux) =
+                            old_soln.recon_y_fluxes(flux_fn, &old_xy_limiters, i, j);
                         guesses.cells[old_soln.index(i, j)].advance(
                             time_step / old_soln.delta_y,
                             bottom_flux,
@@ -464,17 +475,24 @@ impl EulerSolution2d {
                 guesses
             };
 
+            // find predicted slope limits
+            let guess_xy_limiters = VanAlbada::soln_2d_limiters(&guesses);
+
             // correction
             // -- take average flux based on naive cells and guess cells
 
             for j in 0..old_soln.num_y {
                 for i in 0..old_soln.num_x {
                     // naive cells
-                    let (left_flux, right_flux) = old_soln.find_x_fluxes(flux_fn, i, j);
-                    let (bottom_flux, top_flux) = old_soln.find_y_fluxes(flux_fn, i, j);
+                    let (left_flux, right_flux) =
+                        old_soln.recon_x_fluxes(flux_fn, &old_xy_limiters, i, j);
+                    let (bottom_flux, top_flux) =
+                        old_soln.recon_y_fluxes(flux_fn, &old_xy_limiters, i, j);
                     // guessed fluxes
-                    let (guess_left_flux, guess_right_flux) = guesses.find_x_fluxes(flux_fn, i, j);
-                    let (guess_bottom_flux, guess_top_flux) = guesses.find_y_fluxes(flux_fn, i, j);
+                    let (guess_left_flux, guess_right_flux) =
+                        guesses.recon_x_fluxes(flux_fn, &guess_xy_limiters, i, j);
+                    let (guess_bottom_flux, guess_top_flux) =
+                        guesses.recon_y_fluxes(flux_fn, &guess_xy_limiters, i, j);
 
                     // get avg
                     let left_avg = 0.5 * (left_flux + guess_left_flux);
@@ -492,6 +510,72 @@ impl EulerSolution2d {
 
             t += time_step;
         }
+    }
+
+    // these two could do with cleanup, a copy-paste job from find_x and find_y
+    fn recon_x_fluxes(
+        &self,
+        flux_fn: impl FluxFunction2d,
+        limiters: &Vec<(EulerLimit2d, EulerLimit2d)>,
+        i: usize,
+        j: usize,
+    ) -> (EulerFlux2d, EulerFlux2d) {
+        let left_flux = if i == 0 || i == self.num_x - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_x_flux(
+                self.at(i - 1, j)
+                    .reconstruct(limiters[self.index(i - 1, j)].0),
+                self.at(i, j)
+                    .reconstruct(-1.0 * limiters[self.index(i, j)].0),
+            )
+        };
+
+        let right_flux = if i == 0 || i == self.num_x - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_x_flux(
+                self.at(i, j)
+                    .reconstruct(limiters[self.index(i, j)].0),
+                self.at(i + 1, j)
+                    .reconstruct(-1.0 * limiters[self.index(i + 1, j)].0),
+            )
+        };
+
+        (left_flux, right_flux)
+    }
+
+    fn recon_y_fluxes(
+        &self,
+        flux_fn: impl FluxFunction2d,
+        limiters: &Vec<(EulerLimit2d, EulerLimit2d)>,
+        i: usize,
+        j: usize,
+    ) -> (EulerFlux2d, EulerFlux2d) {
+
+        let bottom_flux = if j == 0 || j == self.num_y - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_y_flux(
+                self.at(i, j - 1)
+                    .reconstruct(limiters[self.index(i, j-1)].1),
+                self.at(i, j)
+                    .reconstruct(-1.0 * limiters[self.index(i, j)].1),
+            )
+        };
+
+        let top_flux = if j == 0 || j == self.num_y - 1 {
+            EulerFlux2d::empty()
+        } else {
+            flux_fn.calculate_y_flux(
+                self.at(i, j)
+                    .reconstruct(limiters[self.index(i, j)].1),
+                self.at(i, j + 1)
+                    .reconstruct(-1.0 * limiters[self.index(i, j + 1)].1),
+            )
+        };
+
+        (bottom_flux, top_flux)
     }
 
     fn max_stable_timestep(&self, cfl: f64) -> f64 {

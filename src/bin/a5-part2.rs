@@ -55,7 +55,7 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     soln.init(case_1_init);
     let t_final = 0.75e-3; // 0.75 ms
     soln.second_order_time_march(cfl, flux_fn, t_final);
-    soln.write_gmsh("data/part2-case1-time.msh");
+    soln.write_gmsh("data/part2-case1-full.msh");
 }
 
 fn case_2(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
@@ -110,7 +110,7 @@ fn case_2(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     let t_final = 2.53e-3; // s
     soln.second_order_time_march(cfl, flux_fn, t_final);
 
-    soln.write_gmsh("data/part2-case2-time.msh");
+    soln.write_gmsh("data/part2-case2-full.msh");
 }
 
 fn case_3(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
@@ -165,5 +165,5 @@ fn case_3(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     let t_final = 1.9e-3; // s
     soln.second_order_time_march(cfl, flux_fn, t_final);
 
-    soln.write_gmsh("data/part2-case3-time.msh");
+    soln.write_gmsh("data/part2-case3-full.msh");
 }

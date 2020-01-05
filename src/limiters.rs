@@ -2,7 +2,7 @@
 //! -- Max Orok December 2019
 
 use crate::euler1d::EulerCell1d;
-use crate::euler2d::{EulerCell2d, StateVec2d, EulerSolution2d};
+use crate::euler2d::{EulerCell2d, EulerSolution2d, StateVec2d};
 
 use crate::fluxes::EulerCellDelta;
 use std::ops::{Mul, Sub};
@@ -181,19 +181,18 @@ impl VanAlbada {
         // first cell take a copy as left cell
         for j in 0..soln.num_y {
             for i in 0..soln.num_x {
-
                 let this_cell = soln.at(i, j);
 
                 let left_cell = if i == 0 {
                     soln.at(i, j)
                 } else {
-                    soln.at(i-1, j)
+                    soln.at(i - 1, j)
                 };
 
-                let right_cell = if i == soln.num_x-1 {
+                let right_cell = if i == soln.num_x - 1 {
                     soln.at(i, j)
                 } else {
-                    soln.at(i+1, j)
+                    soln.at(i + 1, j)
                 };
 
                 let x_limiter = Self::limiter_2d(left_cell, this_cell, right_cell);
@@ -203,13 +202,13 @@ impl VanAlbada {
                 let bottom_cell = if j == 0 {
                     soln.at(i, j)
                 } else {
-                    soln.at(i, j-1)
+                    soln.at(i, j - 1)
                 };
 
-                let top_cell = if j == soln.num_y-1 {
+                let top_cell = if j == soln.num_y - 1 {
                     soln.at(i, j)
                 } else {
-                    soln.at(i, j+1)
+                    soln.at(i, j + 1)
                 };
 
                 let y_limiter = Self::limiter_2d(bottom_cell, this_cell, top_cell);
