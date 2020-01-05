@@ -18,6 +18,7 @@ use std::path::Path;
 
 use crate::euler1d::*;
 use crate::fluxes::*;
+use crate::fluxes::fluxes2d::*;
 use crate::limiters::VanAlbada;
 use crate::pde::Boundary1d;
 use crate::riemann::{waves::DataPoint, DomainBounds, EulerState, StateSide};
@@ -40,7 +41,50 @@ pub struct EulerPrimitive2d {
 impl EulerPrimitive2d {
     pub fn energy(self) -> f64 {
         self.pressure / (self.gamma - 1.0)
-            + (0.5 * self.density * (self.x_vel * self.x_vel + self.y_vel * self.y_vel))
+            + (0.5 * self.density * self.velocity_sq())
+    }
+
+    pub fn enthalpy(self) -> f64 {
+        self.gamma * self.pressure / (self.density * (self.gamma - 1.0))
+            + (0.5 * self.velocity_sq())
+    }
+
+    pub fn velocity_sq(self) -> f64 {
+        self.x_vel * self.x_vel + self.y_vel * self.y_vel
+    }
+
+    pub fn sound_speed(self) -> f64 {
+        (self.gamma - 1.0) * f64::sqrt(self.enthalpy() - 0.5 * self.velocity_sq())
+    }
+
+    /// Get a view of this 2d state as a 1d state in the x-direction.
+    pub fn as_x_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.x_vel,
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
+    }
+
+    /// Get a view of this 2d state as a 1d state in the y-direction.
+    pub fn as_y_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.y_vel,
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
+    }
+
+    /// Get a view of this state using the combined velocities.
+    pub fn as_xy_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.velocity_sq(),
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
     }
 }
 
@@ -107,16 +151,21 @@ impl StateVec2d {
         self.y_momentum / self.density
     }
     #[inline]
+    pub fn velocity_sq(self) -> f64 {
+        self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()
+    }
+
+    #[inline]
     pub fn pressure(self) -> f64 {
         (self.gamma - 1.0)
             * (self.energy
-                - 0.5 * self.density * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
+                - 0.5 * self.density * self.velocity_sq())
     }
 
     #[inline]
     fn inner_energy_flux(self) -> f64 {
         self.gamma * self.pressure() / (self.gamma - 1.0)
-            + (0.5 * self.density * (self.x_vel() * self.x_vel() + self.y_vel() * self.y_vel()))
+            + (0.5 * self.density * self.velocity_sq())
     }
 }
 
@@ -269,14 +318,15 @@ impl EulerSolution2d {
     pub fn first_order_time_march(
         &mut self,
         cfl: f64,
-        flux_fn: impl FluxFunction,
+        flux_fn: impl FluxFunction2d,
         t_final: f64,
-    ) -> Vec<EulerCell2d> {
-        self.data()
+    ) {
 
-        // let mut t = 0.0;
-        // while t < t_final {
-        //     // find
+        let mut t = 0.0;
+
+
+
+        //while t < t_final {
         //     // skim off previous values
         //     let old_soln = self.clone();
         //     let time_step = if t + old_soln.max_stable_timestep() > t_final {
@@ -299,7 +349,7 @@ impl EulerSolution2d {
         //     t += time_step;
         // }
 
-        // self.cells
+        unimplemented!();
     }
 
     // data viz fns for solution

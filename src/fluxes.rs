@@ -6,6 +6,8 @@
 use crate::euler1d::{EulerCell1d, EulerFlux, PrimitiveState};
 use crate::riemann::{solve_euler, DomainBounds, StateSide};
 
+pub mod fluxes2d;
+
 pub trait FluxFunction {
     fn calculate_flux(&self, left: EulerCell1d, right: EulerCell1d, time_step: f64) -> EulerFlux;
 }

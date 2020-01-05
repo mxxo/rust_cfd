@@ -6,9 +6,8 @@
 //! -----------------------------------------------------------------------------
 
 // use rust_cfd::euler1d::{EulerSolution1d, PrimitiveResult, PrimitiveState};
-use fluxes::FluxFunction;
 use rust_cfd::euler2d::*;
-use rust_cfd::fluxes;
+use rust_cfd::fluxes::fluxes2d::{FluxFunction2d, Hlle2d};
 
 // constant for all gases
 const GAMMA: f64 = 1.4;
@@ -18,14 +17,14 @@ const MAX: Point2d = Point2d { x: 0.5, y: 0.5 };
 fn main() {
     let sq_width = 500;
     let cfl = 0.5;
-    let flux_fn = fluxes::Hlle {};
+    let flux_fn = Hlle2d {};
 
     case_1(sq_width, flux_fn, cfl);
     case_2(sq_width, flux_fn, cfl);
     case_3(sq_width, flux_fn, cfl);
 }
 
-fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
+fn case_1(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
@@ -54,13 +53,12 @@ fn case_1(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     // initialize solution grid
     soln.init(case_1_init);
-
     let t_final = 0.75e-3; // 0.75 ms
-
+    soln.first_order_time_march(cfl, flux_fn, t_final);
     soln.write_gmsh("data/case1.msh");
 }
 
-fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
+fn case_2(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
@@ -109,13 +107,13 @@ fn case_2(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     // initialize solution grid
     soln.init(init_fn);
-
     let t_final = 2.53e-3; // s
+    soln.first_order_time_march(cfl, flux_fn, t_final);
 
     soln.write_gmsh("data/case2.msh");
 }
 
-fn case_3(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
+fn case_3(sq_width: usize, flux_fn: impl FluxFunction2d, cfl: f64) {
     let mut soln = EulerSolution2d::square(sq_width, MIN, MAX);
 
     let u1 = EulerPrimitive2d {
@@ -164,8 +162,8 @@ fn case_3(sq_width: usize, flux_fn: impl FluxFunction, cfl: f64) {
 
     // initialize solution grid
     soln.init(init_fn);
-
     let t_final = 1.9e-3; // s
+    soln.first_order_time_march(cfl, flux_fn, t_final);
 
     soln.write_gmsh("data/case3.msh");
 }
