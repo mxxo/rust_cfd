@@ -57,35 +57,6 @@ impl EulerPrimitive2d {
         (self.gamma - 1.0) * f64::sqrt(self.enthalpy() - 0.5 * self.velocity_sq())
     }
 
-    /// Get a view of this 2d state as a 1d state in the x-direction.
-    pub fn as_x_primitive(self) -> PrimitiveState {
-        PrimitiveState {
-            density: self.density,
-            velocity: self.x_vel,
-            pressure: self.pressure,
-            gamma: self.gamma,
-        }
-    }
-
-    /// Get a view of this 2d state as a 1d state in the y-direction.
-    pub fn as_y_primitive(self) -> PrimitiveState {
-        PrimitiveState {
-            density: self.density,
-            velocity: self.y_vel,
-            pressure: self.pressure,
-            gamma: self.gamma,
-        }
-    }
-
-    /// Get a view of this state using the combined velocities.
-    pub fn as_xy_primitive(self) -> PrimitiveState {
-        PrimitiveState {
-            density: self.density,
-            velocity: self.velocity_sq(),
-            pressure: self.pressure,
-            gamma: self.gamma,
-        }
-    }
 }
 
 // primitive to conserved

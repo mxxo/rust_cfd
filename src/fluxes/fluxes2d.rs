@@ -13,6 +13,8 @@ pub trait FluxFunction2d {
 
 impl FluxFunction2d for Hlle2d {
     fn calculate_x_flux(&self, left: EulerCell2d, right: EulerCell2d, time_step: f64) -> EulerFlux2d {
+        // find roe average along x-direction
+
         unimplemented!();
     }
 
@@ -24,6 +26,39 @@ impl FluxFunction2d for Hlle2d {
 /// Two dimensional Roe equations.
 #[derive(Debug, Clone, Copy)]
 pub struct Roe2d;
+
+// quick and dirty reuse of the 1d functions
+impl EulerPrimitive2d {
+    /// Get a view of this 2d state as a 1d state in the x-direction.
+    pub fn as_x_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.x_vel,
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
+    }
+
+    /// Get a view of this 2d state as a 1d state in the y-direction.
+    pub fn as_y_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.y_vel,
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
+    }
+
+    /// Get a view of this state using the combined velocities.
+    pub fn as_xy_primitive(self) -> PrimitiveState {
+        PrimitiveState {
+            density: self.density,
+            velocity: self.velocity_sq(),
+            pressure: self.pressure,
+            gamma: self.gamma,
+        }
+    }
+}
 
 // 2d helper functions for Roe average state
 impl Roe2d {
@@ -44,5 +79,3 @@ impl Roe2d {
         }
     }
 }
-
-
