@@ -15,7 +15,7 @@ const MIN: Point2d = Point2d { x: -0.5, y: -0.5 };
 const MAX: Point2d = Point2d { x: 0.5, y: 0.5 };
 
 fn main() {
-    let sq_width = 500;
+    let sq_width = 100;
     let cfl = 0.5;
     let flux_fn = Hlle2d {};
 
