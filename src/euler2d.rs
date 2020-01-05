@@ -448,13 +448,13 @@ impl EulerSolution2d {
         i: usize,
         j: usize,
     ) -> (EulerFlux2d, EulerFlux2d) {
-        let left_flux = if i == 0 {
+        let left_flux = if i == 0 || i == self.num_x - 1 {
             EulerFlux2d::empty()
         } else {
             flux_fn.calculate_x_flux(self.at(i - 1, j), self.at(i, j))
         };
 
-        let right_flux = if i == self.num_x - 1 {
+        let right_flux = if i == 0 || i == self.num_x - 1 {
             EulerFlux2d::empty()
         } else {
             flux_fn.calculate_x_flux(self.at(i, j), self.at(i + 1, j))
@@ -469,13 +469,13 @@ impl EulerSolution2d {
         i: usize,
         j: usize,
     ) -> (EulerFlux2d, EulerFlux2d) {
-        let bottom_flux = if j == 0 {
+        let bottom_flux = if j == 0 || j == self.num_y - 1 {
             EulerFlux2d::empty()
         } else {
             flux_fn.calculate_y_flux(self.at(i, j - 1), self.at(i, j))
         };
 
-        let top_flux = if j == self.num_y - 1 {
+        let top_flux = if j == 0 || j == self.num_y - 1 {
             EulerFlux2d::empty()
         } else {
             flux_fn.calculate_y_flux(self.at(i, j), self.at(i, j + 1))
