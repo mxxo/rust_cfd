@@ -14,8 +14,7 @@ rand = "0.7"
 # safe unsigned-float conversions
 num-traits = "0.2"
 
-# our homebrew midpoint rule fork of gauss-quad
-gauss-quad = { git = "https://github.com/mxxo/gauss-quad", branch = "midpoint-rule" }
+gauss-quad = "0.1.4"
 
 nalgebra = "0.18"
 nalgebra-lapack = "0.10"
