@@ -1,6 +1,6 @@
-# Rust library for the course "Finite-volume methods" 
+# Rust library for the course "Finite-volume methods" 🌪️
 
-## Completed assignments 
+## Executables 
 * **a1** --- Godunov's method for linear PDEs (1D) 
 * **a2** --- Exact Riemann solver for the Euler equations (1D) 
 * **a3** --- Approximate Riemann solvers (1D) 
