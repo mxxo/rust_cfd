@@ -19,11 +19,6 @@ extern crate nalgebra_lapack;
 
 use nalgebra_lapack::Eigen;
 
-// filesystem
-use std::fs::File;
-use std::io::{BufWriter, Write};
-use std::path::Path;
-
 // prints out two solution files
 fn main() {
     // choose the flux function here
@@ -33,26 +28,29 @@ fn main() {
     let flux_type = FluxType::Riemann;
 
     // first pde
-    let soln1 = pde1(&flux_type);
+    let soln1 = pde1(flux_type);
     let (coords, values) = soln1.export();
-    print_data("out/question1.csv", "position, value", &coords, &[&values]);
+
+    eprintln!("<< case 1 >>");
+    println!("position\tvalue");
+    for (x, y) in coords.iter().zip(values.iter()) {
+        println!("{:.3}\t{:.3}", x, y);
+    }
 
     // second pde
-    let (soln2a, soln2b) = pde2(&flux_type);
-    // destructure coords and values
+    let (soln2a, soln2b) = pde2(flux_type);
     let (coords, a_values) = soln2a.export();
     let (_, b_values) = soln2b.export();
 
-    print_data(
-        "out/question2.csv",
-        "position, pde1, pde2",
-        &coords,
-        &[&a_values, &b_values],
-    );
+    eprintln!("<< case 2 >>");
+    println!("position\ty1\ty2");
+    for (x, (y1, y2)) in coords.iter().zip(a_values.iter().zip(b_values.iter())) {
+        println!("{:.3}\t{:.3}\t{:.3}", x, y1, y2);
+    }
 }
 
 // the first pde
-fn pde1(flux_type: &FluxType) -> Solution1d {
+fn pde1(flux_type: FluxType) -> Solution1d {
     // discretize domain
     let left = -5.0;
     let right = 5.0;
@@ -75,7 +73,7 @@ fn pde1(flux_type: &FluxType) -> Solution1d {
 }
 
 // the second set of pdes
-fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
+fn pde2(flux_type: FluxType) -> (Solution1d, Solution1d) {
     let left = -5.0;
     let right = 5.0;
     let num_cells = 100;
@@ -184,7 +182,7 @@ fn pde2(flux_type: &FluxType) -> (Solution1d, Solution1d) {
 // -- signature is kinda smelly... 3 floats in a row
 fn step_pde(
     mut soln: Solution1d,
-    flux_type: &FluxType,
+    flux_type: FluxType,
     wave_speed: f64,
     t_end: f64,
     cfl: f64,
@@ -197,9 +195,9 @@ fn step_pde(
 
     loop {
         if time + time_step > t_end {
-            soln.update(&flux_type, t_end - time, wave_speed);
+            soln.update(flux_type, t_end - time, wave_speed);
         } else {
-            soln.update(&flux_type, time_step, wave_speed);
+            soln.update(flux_type, time_step, wave_speed);
         }
 
         time += time_step;
@@ -212,24 +210,8 @@ fn step_pde(
 }
 
 // helper function for timesteps
+#[inline]
 fn get_time_step(delta_x: f64, wave_speed: f64, cfl: f64) -> f64 {
     // wave speed absolute value to avoid negative timesteps
     cfl * delta_x / wave_speed.abs()
-}
-
-// simple csv printing function
-fn print_data(filename: &str, header: &str, x_values: &[f64], y_values: &[&[f64]]) {
-    // unwraps are quick and dirty for now
-
-    let path = Path::new(filename);
-    let mut filestream = BufWriter::new(File::create(&path).unwrap());
-
-    write!(&mut filestream, "{}", header).unwrap();
-
-    for (index, x_val) in x_values.iter().enumerate() {
-        write!(&mut filestream, "\n{}", x_val).unwrap();
-        for y_column in y_values {
-            write!(&mut filestream, ", {}", y_column[index]).unwrap();
-        }
-    }
 }

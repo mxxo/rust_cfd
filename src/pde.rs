@@ -57,7 +57,7 @@ pub struct Solution1d {
 // ----------------------------------------------------------------------------
 
 // enum of supported flux functions
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum FluxType {
     LeftCell,
     RightCell,
@@ -150,7 +150,7 @@ impl Solution1d {
     }
 
     // update the solution
-    pub fn update(&mut self, flux_type: &FluxType, timestep: f64, wavespeed: f64) {
+    pub fn update(&mut self, flux_type: FluxType, timestep: f64, wavespeed: f64) {
         // use enum to dispatch the different flux functions
         let flux_fn = match flux_type {
             FluxType::LeftCell => left_flux,
