@@ -1,11 +1,4 @@
-//! Finite-Volume methods assignment 1
-//! Max Orok, September 2019
-//!
-//! *Godunov's method for linear PDEs in 1D*
-//! 1. discretize domain into non-overlapping cells
-//! 2. compute average of initial condition in each cell
-//! 3. solve a Riemann problem on each boundary to find the fluxes
-//! 4. advance each cell average
+// implementation using eigendecomposition
 
 // general solution code
 use godunov::{FluxType, Solution1d};

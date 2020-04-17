@@ -5,8 +5,6 @@ authors = ["Max Orok <maxwellorok@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-approx = "0.3"
 gauss-quad = "0.1.4"
-itertools-num = "0.1"
 nalgebra = "0.18"
 nalgebra-lapack = "0.10"

@@ -17,20 +17,8 @@
 //!
 //! That said, it's a classic result from one of the founding fathers of
 //! computational fluid dynamics.
-#![doc(html_logo_url = "assets/godunov-clear.png")]
-// ----------------------------------------------------------------------------
-//  Dependencies
-// ----------------------------------------------------------------------------
+#![doc(html_logo_url = "https://github.com/mxxo/rust_cfd/raw/master/godunov/assets/godunov-clear.png")]
 
-// floating-point equality
-extern crate approx;
-
-// evenly-spaced floats
-extern crate itertools_num;
-use itertools_num::linspace;
-
-// numerical integration
-extern crate gauss_quad;
 use gauss_quad::Midpoint;
 
 // ----------------------------------------------------------------------------
@@ -212,10 +200,10 @@ impl Solution1d {
 // create `num_cell` equally sized pieces between left and right
 pub fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
     // one more boundary than number of cells
-    let boundary_coords = linspace::<f64>(left, right, num_cells + 1);
+    let boundary_coords = linspace(left, right, num_cells + 1);
     let mut boundaries = Vec::new();
 
-    for (idx, coord) in boundary_coords.enumerate() {
+    for (idx, &coord) in boundary_coords.iter().enumerate() {
         // num_cells is for wraparound indexing of usize values
         let prev_idx = if idx == 0 { num_cells - 1 } else { idx - 1 };
         let next_idx = idx % num_cells;
@@ -229,6 +217,17 @@ pub fn make_domain(left: f64, right: f64, num_cells: usize) -> Vec<Boundary1d> {
     boundaries
 }
 
+pub fn linspace(left: f64, right: f64, num: usize) -> Vec<f64> {
+    let mut res = Vec::with_capacity(num);
+
+    let step = (right - left) / (num as f64 - 1.0);
+    for i in 0..num {
+        res.push((i as f64) * step);
+    }
+
+    res
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,5 +237,10 @@ mod tests {
         let l = 100;
         let domain = make_domain(-10., 10., l);
         assert!(domain.len() == l + 1);
+    }
+
+    #[test]
+    fn linspace_sanity() {
+        assert_eq!(vec![0.0, 0.25, 0.5, 0.75, 1.0], linspace(0.0, 1.0, 5));
     }
 }
