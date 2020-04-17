@@ -1,3 +1,23 @@
+//! Use Godunov's method to solve linear partial differential equations in 1D.
+//!
+//! ## Godunov's idea:
+//! 1. Discretize domain into non-overlapping cells.
+//! 2. Compute average of the initial condition in each cell.
+//! 3. Solve a Riemann problem on each boundary to find the fluxes.
+//! 4. Advance each cell average.
+//!
+//! This implementation uses simple convective upwinding.
+//!
+//! ## Properties
+//! Godunov's method is 1st-order in space and time. Twice as many cells cuts the error in half.
+//!
+//! ## When would I use this?
+//! This scheme was cutting edge in 1959. These days, it's used as a basis for
+//! more advanced methods.
+//!
+//! That said, it's a classic result from one of the founding fathers of
+//! computational fluid dynamics.
+#![doc(html_logo_url = "assets/godunov-clear.png")]
 // ----------------------------------------------------------------------------
 //  Dependencies
 // ----------------------------------------------------------------------------

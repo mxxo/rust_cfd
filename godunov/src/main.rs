@@ -8,7 +8,7 @@
 //! 4. advance each cell average
 
 // general solution code
-use rust_cfd::pde::{FluxType, Solution1d};
+use godunov::{FluxType, Solution1d};
 
 // basic math functions
 use std::f64;

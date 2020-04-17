@@ -1,23 +1,5 @@
-[package]
-name = "rust_cfd"
-version = "0.1.0"
-authors = ["Max Orok <morok@mevex.com>"]
-edition = "2018"
-
-[lib]
-name = "rust_cfd"
-path = "src/lib.rs"
-
-[dependencies]
-rand = "0.7"
-
-# safe unsigned-float conversions
-num-traits = "0.2"
-
-gauss-quad = "0.1.4"
-
-nalgebra = "0.18"
-nalgebra-lapack = "0.10"
-
-approx = "0.3"
-itertools-num = "0.1"
+[workspace]
+members = [
+    "cfd",
+    "godunov",
+]
